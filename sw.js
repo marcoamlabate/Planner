@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-compiled-v3';
+const CACHE_NAME = 'adhd-planner-compiled-v4';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
