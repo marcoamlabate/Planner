@@ -95,6 +95,17 @@ function eventDurationMinutes(appt) {
         return 60;
     return end - start;
 }
+function dateToLocalStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+function weekStartFromDate(d) {
+    const n = new Date(d);
+    n.setDate(n.getDate() - n.getDay());
+    return n;
+}
 
 function readImageFile(file) {
     return new Promise(r => { const fr = new FileReader(); fr.onload = e => { var _a, _b; return r((_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.result) !== null && _b !== void 0 ? _b : ""); }; fr.readAsDataURL(file); });
@@ -430,7 +441,19 @@ function App() {
     function quickAddTask(text, categoryId) {
         setTasks((p) => [...p, { id: Date.now(), text, description: "", priority: "medium", done: false, categoryId, imageUrl: "", dueDate: "", recurrence: "none", subtasks: [] }]);
     }
-    function openAddAppt() { setApptDraft(emptyAppt()); setEditingApptId(null); setShowApptForm(true); }
+    function openAddAppt() {
+        const draft = emptyAppt();
+        let selected = null;
+        if (selWeekDay)
+            selected = selWeekDay;
+        else if (selDay)
+            selected = new Date(calYear, calMonth, selDay);
+        if (selected)
+            draft.date = dateToLocalStr(selected);
+        setApptDraft(draft);
+        setEditingApptId(null);
+        setShowApptForm(true);
+    }
     function openEditAppt(a) {
         var _a;
         setApptDraft({ title: a.title, date: a.date, time: a.time, endTime: a.endTime || "", color: a.color, description: a.description, imageUrl: a.imageUrl, recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
@@ -727,11 +750,17 @@ function App() {
                         const day = i + 1;
                         const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
                         const isSel = selDay === day;
-                        return (React.createElement("button", { key: day, onClick: () => setSelDay(isSel ? null : day), style: { aspectRatio: "1", borderRadius: 10, border: "none", background: isSel ? C.accent : isToday ? C.bg4 : C.bg2, color: isSel ? C.bg0 : isToday ? C.accent : C.text, fontWeight: isSel || isToday ? 800 : 500, fontSize: 12, cursor: "pointer", fontFamily: "inherit", outline: isToday && !isSel ? `1px solid ${C.accent}66` : "none", boxShadow: isSel ? `0 0 14px ${C.accent}66` : "none", position: "relative" } },
+                        return (React.createElement("button", { key: day, onClick: () => {
+                            const picked = new Date(calYear, calMonth, day);
+                            setSelDay(day);
+                            setWeekStart(weekStartFromDate(picked));
+                            setSelWeekDay(picked);
+                            setCalView("week");
+                        }, style: { aspectRatio: "1", borderRadius: 10, border: "none", background: isSel ? C.accent : isToday ? C.bg4 : C.bg2, color: isSel ? C.bg0 : isToday ? C.accent : C.text, fontWeight: isSel || isToday ? 800 : 500, fontSize: 12, cursor: "pointer", fontFamily: "inherit", outline: isToday && !isSel ? `1px solid ${C.accent}66` : "none", boxShadow: isSel ? `0 0 14px ${C.accent}66` : "none", position: "relative" } },
                             day,
                             apptsByDay[day] && !isSel && (React.createElement("div", { style: { position: "absolute", bottom: 3, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 2 } }, (apptsByDay[day] || []).slice(0, 3).map((a, idx) => React.createElement("div", { key: idx, style: { width: 3, height: 3, borderRadius: "50%", background: a.color, boxShadow: `0 0 4px ${a.color}` } }))))));
                     })),
-                selDay && (React.createElement("div", { style: { marginTop: 16 } },
+                false && selDay && (React.createElement("div", { style: { marginTop: 16 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 10 } },
                         "// ",
                         MONTHS[calMonth],
@@ -745,18 +774,18 @@ function App() {
                     appts.length === 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No appointments added."))))),
             calView === "week" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 } },
-                    React.createElement("button", { onClick: () => { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() - 7); return n; }); setSelWeekDay(null); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u2039"),
+                    React.createElement("button", { onClick: () => { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() - 7); setSelWeekDay(n); return n; }); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u2039"),
                     React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: C.text, letterSpacing: 2 } },
                         weekDays[0].toLocaleDateString([], { month: "short", day: "numeric" }),
                         " \u2013 ",
                         weekDays[6].toLocaleDateString([], { month: "short", day: "numeric" })),
-                    React.createElement("button", { onClick: () => { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() + 7); return n; }); setSelWeekDay(null); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u203A")),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 14 } }, weekDays.map((wd, i) => {
+                    React.createElement("button", { onClick: () => { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() + 7); setSelWeekDay(n); return n; }); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u203A")),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 14, position: "sticky", top: 0, zIndex: 20, background: C.bg1, paddingBottom: 8 } }, weekDays.map((wd, i) => {
                     var _a;
                     const isToday = wd.toDateString() === today.toDateString();
                     const isSel = (selWeekDay === null || selWeekDay === void 0 ? void 0 : selWeekDay.toDateString()) === wd.toDateString();
                     const dayAppts = (_a = weekApptsByDay[wd.toDateString()]) !== null && _a !== void 0 ? _a : [];
-                    return (React.createElement("button", { key: i, onClick: () => setSelWeekDay(isSel ? null : wd), style: { borderRadius: 12, border: "none", background: isSel ? C.accent : isToday ? C.bg4 : C.bg2, cursor: "pointer", fontFamily: "inherit", padding: "8px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, outline: isToday && !isSel ? `1px solid ${C.accent}66` : "none", boxShadow: isSel ? `0 0 12px ${C.accent}66` : "none" } },
+                    return (React.createElement("button", { key: i, onClick: () => setSelWeekDay(wd), style: { borderRadius: 12, border: "none", background: isSel ? C.accent : isToday ? C.bg4 : C.bg2, cursor: "pointer", fontFamily: "inherit", padding: "8px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, outline: isToday && !isSel ? `1px solid ${C.accent}66` : "none", boxShadow: isSel ? `0 0 12px ${C.accent}66` : "none" } },
                         React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: isSel ? C.bg0 : C.dim, letterSpacing: 1 } }, DAYS_L[i].slice(0, 3)),
                         React.createElement("div", { style: { fontSize: 15, fontWeight: 800, color: isSel ? C.bg0 : isToday ? C.accent : C.text } }, wd.getDate()),
                         React.createElement("div", { style: { display: "flex", gap: 2 } }, dayAppts.slice(0, 3).map((a, idx) => React.createElement("div", { key: idx, style: { width: 4, height: 4, borderRadius: "50%", background: isSel ? C.bg0 : a.color } })))));
@@ -768,8 +797,8 @@ function App() {
                         " ",
                         selWeekDay.toLocaleDateString([], { month: "short", day: "numeric" })),
                     ((_c = weekApptsByDay[selWeekDay.toDateString()]) !== null && _c !== void 0 ? _c : []).length === 0
-                        ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No events this day.")
-                        : ((_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : []).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt })))),
+                        ? React.createElement(DayTimeline, { date: selWeekDay, appts: [], onDelete: deleteAppt, onEdit: openEditAppt })
+                        : React.createElement(DayTimeline, { date: selWeekDay, appts: (_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : [], onDelete: deleteAppt, onEdit: openEditAppt }))),
                 !selWeekDay && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0", letterSpacing: 1 } }, "Tap a day to see its events."))),
             calView === "list" && (React.createElement("div", null,
                 React.createElement("div", { style: { marginBottom: 14 } },

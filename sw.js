@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v10-calendar-timeline';
+const CACHE_NAME = 'adhd-planner-week-timeline-v11';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
