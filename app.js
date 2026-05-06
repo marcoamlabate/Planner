@@ -203,8 +203,8 @@ function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixe
             onAddNote(text.trim(), folderId);
         onClose();
     }
-    return (React.createElement("div", { style: { position: "fixed", top: 0, left: 0, right: 0, bottom: "calc(64px + env(safe-area-inset-bottom, 0px))", background: "rgba(0,0,0,0.75)", zIndex: 300, display: "flex", alignItems: "flex-end" }, onClick: onClose },
-        React.createElement("div", { style: { width: "100%", background: C.bg2, borderRadius: "24px 24px 0 0", padding: "20px 16px 72px", border: `1px solid ${C.border}`, maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 100px)", overflowY: "auto" }, onClick: e => e.stopPropagation() },
+    return (React.createElement("div", { style: { position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 300, display: "flex", alignItems: "flex-end" }, onClick: onClose },
+        React.createElement("div", { style: { width: "100%", background: C.bg2, borderRadius: "24px 24px 0 0", padding: "20px 16px 44px", border: `1px solid ${C.border}` }, onClick: e => e.stopPropagation() },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent } }, "// QUICK CAPTURE"),
                 React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", fontWeight: 700 } }, "\u00D7")),
@@ -697,7 +697,7 @@ function App() {
             showCapture && React.createElement(QuickCapture, { fixed: true, categories: categories, folders: folders, onAddTask: quickAddTask, onAddNote: quickAddNote, onClose: () => setShowCapture(false) })));
     }
     // ── PHONE LAYOUT (<640px) ──────────────────────────────────────────────────
-    return (React.createElement("div", { style: { minHeight: "100dvh", width: "100%", background: C.bg1, display: "flex", flexDirection: "column", position: "relative", fontFamily: "'IBM Plex Mono','Courier New',monospace", overflow: "hidden" } },
+    return (React.createElement("div", { style: { height: "100%", minHeight: 0, width: "100%", background: C.bg1, display: "flex", flexDirection: "column", position: "relative", fontFamily: "'IBM Plex Mono','Courier New',monospace", overflow: "hidden" } },
         React.createElement("div", { style: { margin: "8px 16px 0", background: C.bg2, border: `1px solid ${C.accent}33`, borderLeft: `3px solid ${C.accent}`, borderRadius: 14, padding: "12px 16px", cursor: "pointer", position: "relative", overflow: "hidden" }, onClick: !editMot ? startEditMot : undefined },
             React.createElement("div", { style: { position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, ${C.accent}88, transparent)` } }),
             React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, textTransform: "uppercase", marginBottom: 4 } }, "// FOCUS MODE"),
@@ -722,8 +722,8 @@ function App() {
             React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 38, height: 38, borderRadius: 12, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, "\uD83D\uDD0D")),
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
-        React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px calc(220px + env(safe-area-inset-bottom, 0px))" } }, tabContent),
-        !showCapture && (React.createElement("button", { onClick: () => setShowCapture(true), style: { position: "fixed", bottom: "calc(120px + env(safe-area-inset-bottom, 0px))", right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, "+")),
+        React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px 100px" } }, tabContent),
+        !showCapture && (React.createElement("button", { onClick: () => setShowCapture(true), style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, "+")),
         showCapture && (React.createElement(QuickCapture, { categories: categories, folders: folders, onAddTask: quickAddTask, onAddNote: quickAddNote, onClose: () => setShowCapture(false) }))));
 }
 
