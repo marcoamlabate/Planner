@@ -164,14 +164,46 @@ const DEFAULT_CATEGORIES = [
     { id: "college", name: "College", color: "#06B6D4" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
+
+function getImages(item) {
+    const arr = Array.isArray(item && item.imageUrls) ? item.imageUrls.filter(Boolean) : [];
+    if (item && item.imageUrl && !arr.includes(item.imageUrl))
+        arr.unshift(item.imageUrl);
+    return arr;
+}
+function makeImageData(images) {
+    const clean = (images || []).filter(Boolean);
+    return { imageUrls: clean, imageUrl: clean[0] || "" };
+}
 function ImageUploadBtn({ value, onChange }) {
     const ref = useRef(null);
     return (React.createElement("div", { style: { marginBottom: 10 } },
         React.createElement("input", { ref: ref, type: "file", accept: "image/*", style: { display: "none" }, onChange: async (e) => { var _a; const f = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0]; if (f)
                 onChange(await readImageFile(f)); } }),
         value ? (React.createElement("div", { style: { position: "relative", display: "inline-block" } },
-            React.createElement("img", { src: value, alt: "", style: { maxWidth: "100%", borderRadius: 10, maxHeight: 150, objectFit: "cover", display: "block" } }),
+            React.createElement("img", { src: value, alt: "", onClick: () => openPlannerImage(value), style: { maxWidth: "100%", borderRadius: 10, maxHeight: 150, objectFit: "cover", display: "block" } }),
             React.createElement("button", { onClick: () => onChange(""), style: { position: "absolute", top: 4, right: 4, background: "#00000088", border: "none", borderRadius: 6, width: 24, height: 24, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 14 } }, "\u00D7"))) : (React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "7px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: 1 } }, "+ ADD IMAGE"))));
+}
+
+function MultiImageUploadBtn({ value, onChange }) {
+    const ref = useRef(null);
+    const images = Array.isArray(value) ? value.filter(Boolean) : (value ? [value] : []);
+    async function addFiles(files) {
+        const list = Array.from(files || []);
+        if (!list.length)
+            return;
+        const reads = await Promise.all(list.map(f => readImageFile(f)));
+        onChange([...images, ...reads]);
+    }
+    function removeAt(index) {
+        onChange(images.filter((_, i) => i !== index));
+    }
+    return (React.createElement("div", { style: { marginBottom: 10 } },
+        React.createElement("input", { ref: ref, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: async (e) => { await addFiles(e.target.files); e.target.value = ""; } }),
+        images.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 } }, images.map((url, i) => React.createElement("div", { key: i, style: { position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: C.bg3, border: `1px solid ${C.border}` } },
+            React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "zoom-in" } }),
+            React.createElement("button", { onClick: () => removeAt(i), style: { position: "absolute", top: 4, right: 4, background: "#000000AA", border: "none", borderRadius: 6, width: 24, height: 24, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 14 } }, "\u00D7")))),
+        React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "7px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: 1 } }, images.length ? "+ ADD MORE IMAGES" : "+ ADD IMAGES")));
 }
 function CatPill({ label, active, color, onClick }) {
     return React.createElement("button", { onClick: onClick, style: { padding: "4px 10px", borderRadius: 20, border: "none", cursor: "pointer", background: active ? color : C.bg3, color: active ? C.bg0 : color, fontWeight: 700, fontSize: 9, fontFamily: "inherit", letterSpacing: 1 } }, label);
@@ -181,6 +213,10 @@ function SectionHeader({ icon, label, color }) {
         React.createElement("span", null, icon),
         React.createElement("span", null, label),
         React.createElement("div", { style: { flex: 1, height: 1, background: color + "33" } })));
+}
+function openPlannerImage(url) {
+    if (url)
+        window.dispatchEvent(new CustomEvent("planner-lightbox", { detail: url }));
 }
 function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtask, onAddSubtask }) {
     var _a, _b;
@@ -193,7 +229,8 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     const isOverdue = !task.done && task.dueDate && task.dueDate < todayStr();
     const isToday = !task.done && isTodayStr(task.dueDate);
     const recurLabel = { daily: "↺ DAILY", weekly: "↺ WEEKLY", monthly: "↺ MONTHLY" };
-    const hasExtra = !!(task.description || task.imageUrl || subs.length);
+    const taskImages = getImages(task);
+    const hasExtra = !!(task.description || taskImages.length || subs.length);
     return (React.createElement("div", { style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 6, border: `1px solid ${C.border}`, borderLeft: task.done ? `2px solid ${C.dim}` : isOverdue ? `2px solid ${C.red}` : `2px solid ${p.color}`, opacity: task.done ? 0.45 : 1, transition: "opacity 0.3s" } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
             React.createElement("button", { onClick: () => onToggle(task.id), style: { width: 22, height: 22, borderRadius: 6, border: task.done ? "none" : `1px solid ${isOverdue ? C.red : p.color}66`, background: task.done ? C.green : "transparent", cursor: "pointer", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.bg0, fontWeight: 800, boxShadow: task.done ? `0 0 8px ${C.green}55` : "none" } }, task.done ? "✓" : ""),
@@ -217,7 +254,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
                 React.createElement("button", { onClick: () => onDelete(task.id), style: { background: "#FF44441A", border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 13 } }, "\u00D7"))),
         expanded && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
             task.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 8 } }, task.description),
-            task.imageUrl && React.createElement("img", { src: task.imageUrl, alt: "", style: { maxWidth: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", display: "block", marginBottom: 10 } }),
+            taskImages.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 } }, taskImages.map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 8, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
             subs.length > 0 && (React.createElement("div", { style: { marginBottom: 8 } }, subs.map(s => (React.createElement("div", { key: s.id, style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 5 } },
                 React.createElement("button", { onClick: () => onToggleSubtask(task.id, s.id), style: { width: 18, height: 18, borderRadius: 4, border: s.done ? "none" : `1px solid ${C.dim}`, background: s.done ? C.green : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.bg0, fontWeight: 700, fontSize: 10 } }, s.done ? "✓" : ""),
                 React.createElement("span", { style: { fontSize: 12, color: s.done ? C.dim : C.muted, textDecoration: s.done ? "line-through" : "none" } }, s.text)))))),
@@ -234,7 +271,8 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
 function ApptCard({ appt, onDelete, onEdit }) {
     const [expanded, setExpanded] = useState(false);
     const d = new Date(appt.date + "T12:00:00");
-    const hasExtra = !!(appt.description || appt.imageUrl);
+    const apptImages = getImages(appt);
+    const hasExtra = !!(appt.description || apptImages.length);
     const recurLabel = { daily: "↺ DAILY", weekly: "↺ WEEKLY", monthly: "↺ MONTHLY" };
     return (React.createElement("div", { style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${appt.color}` } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
@@ -251,8 +289,8 @@ function ApptCard({ appt, onDelete, onEdit }) {
                 React.createElement("button", { onClick: () => onEdit(appt), style: { background: C.bg3, border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11 } }, "\u270E"),
                 React.createElement("button", { onClick: () => onDelete(appt.id), style: { background: "#FF44441A", border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 13 } }, "\u00D7"))),
         expanded && hasExtra && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
-            appt.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: appt.imageUrl ? 8 : 0 } }, appt.description),
-            appt.imageUrl && React.createElement("img", { src: appt.imageUrl, alt: "", style: { maxWidth: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", display: "block" } })))));
+            appt.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: apptImages.length ? 8 : 0 } }, appt.description),
+            apptImages.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: appt.description ? 8 : 0 } }, apptImages.map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 8, objectFit: "cover", display: "block", cursor: "zoom-in" } })))))));
 }
 
 function DayTimeline({ date, appts, onEdit, onDelete }) {
@@ -344,7 +382,7 @@ function App() {
     const [reviewDraft, setReviewDraft] = useState({ done: "", move: "", tomorrow: "" });
     const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
     const [rawTasks, setTasks] = useLocalState("adhd3_tasks", []);
-    const tasks = rawTasks.map(t => ({ dueDate: "", recurrence: "none", subtasks: [], ...t }));
+    const tasks = rawTasks.map(t => ({ dueDate: "", recurrence: "none", subtasks: [], imageUrls: [], ...t, imageUrls: getImages(t) }));
     const [categories, setCategories] = useLocalState("adhd3_cats", DEFAULT_CATEGORIES);
     const [taskCatFilter, setTaskCatFilter] = useState("all");
     const [taskViewFilter, setTaskViewFilter] = useState("all");
@@ -353,10 +391,10 @@ function App() {
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [showCatMgr, setShowCatMgr] = useState(false);
     const [catDraft, setCatDraft] = useState({ name: "", color: ACCENT_COLORS[4] });
-    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", dueDate: "", recurrence: "none", subtasks: [] }); };
+    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", imageUrls: [], dueDate: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
-    const appts = rawAppts.map(a => ({ endTime: "", recurrence: "none", ...a }));
+    const appts = rawAppts.map(a => ({ endTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) }));
     const [calView, setCalView] = useState("grid");
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -364,8 +402,10 @@ function App() {
     const [weekStart, setWeekStart] = useState(getWeekStart);
     const [apptColorFilter, setApptColorFilter] = useState(new Set());
     const [showApptForm, setShowApptForm] = useState(false);
+    const [selectedApptId, setSelectedApptId] = useState(null);
+    const [lightboxImage, setLightboxImage] = useState(null);
     const [editingApptId, setEditingApptId] = useState(null);
-    const emptyAppt = () => ({ title: "", date: "", time: "", endTime: "", color: C.accent, description: "", imageUrl: "", recurrence: "none" });
+    const emptyAppt = () => ({ title: "", date: "", time: "", endTime: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
     const [apptDraft, setApptDraft] = useState(emptyAppt);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
     const [folders, setFolders] = useLocalState("adhd3_folders", DEFAULT_FOLDERS);
@@ -375,13 +415,18 @@ function App() {
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [showFolderMgr, setShowFolderMgr] = useState(false);
     const [folderDraft, setFolderDraft] = useState({ name: "", color: ACCENT_COLORS[0] });
-    const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "" }); };
+    const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [] }); };
     const [noteDraft, setNoteDraft] = useState(emptyNote);
     function startEditMot() { setMotDraft(motivation); setEditMot(true); setTimeout(() => { var _a; return (_a = motRef.current) === null || _a === void 0 ? void 0 : _a.focus(); }, 50); }
     function saveMot() { if (motDraft.trim())
         setMotivation(motDraft.trim()); setEditMot(false); }
     useEffect(() => { if (searchOpen)
         setTimeout(() => { var _a; return (_a = searchRef.current) === null || _a === void 0 ? void 0 : _a.focus(); }, 100); }, [searchOpen]);
+    useEffect(() => {
+        const h = (e) => setLightboxImage(e.detail);
+        window.addEventListener("planner-lightbox", h);
+        return () => window.removeEventListener("planner-lightbox", h);
+    }, []);
     const searchResults = useMemo(() => {
         if (!searchQuery.trim())
             return null;
@@ -395,7 +440,7 @@ function App() {
     function openAddTask() { setTaskDraft(emptyTask()); setEditingTaskId(null); setShowTaskForm(true); }
     function openEditTask(t) {
         var _a, _b, _c;
-        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: t.imageUrl, dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
+        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: getImages(t)[0] || "", imageUrls: getImages(t), dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
         setEditingTaskId(t.id);
         setShowTaskForm(true);
     }
@@ -442,7 +487,7 @@ function App() {
         setTasks((p) => p.map(t => { var _a, _b; return t.categoryId === id ? { ...t, categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal" } : t; }));
     }
     function quickAddTask(text, categoryId) {
-        setTasks((p) => [...p, { id: Date.now(), text, description: "", priority: "medium", done: false, categoryId, imageUrl: "", dueDate: "", recurrence: "none", subtasks: [] }]);
+        setTasks((p) => [...p, { id: Date.now(), text, description: "", priority: "medium", done: false, categoryId, imageUrl: "", imageUrls: [], dueDate: "", recurrence: "none", subtasks: [] }]);
     }
     function openAddAppt() {
         const draft = emptyAppt();
@@ -454,14 +499,20 @@ function App() {
         if (selected)
             draft.date = dateToLocalStr(selected);
         setApptDraft(draft);
+        setSelectedApptId(null);
         setEditingApptId(null);
         setShowApptForm(true);
     }
     function openEditAppt(a) {
         var _a;
-        setApptDraft({ title: a.title, date: a.date, time: a.time, endTime: a.endTime || "", color: a.color, description: a.description, imageUrl: a.imageUrl, recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setApptDraft({ title: a.title, date: a.date, time: a.time, endTime: a.endTime || "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setSelectedApptId(null);
         setEditingApptId(a.id);
         setShowApptForm(true);
+    }
+    function openViewAppt(a) {
+        setSelectedApptId(a.id);
+        setShowApptForm(false);
     }
     function saveAppt() {
         if (!apptDraft.title.trim() || !apptDraft.date)
@@ -471,6 +522,7 @@ function App() {
         else
             setAppts((p) => [...p, { id: Date.now(), ...apptDraft }]);
         setShowApptForm(false);
+        setSelectedApptId(null);
         setEditingApptId(null);
     }
     function deleteAppt(id) { setAppts((p) => p.filter(a => a.id !== id)); }
@@ -478,7 +530,7 @@ function App() {
     const filteredAppts = apptColorFilter.size === 0 ? appts : appts.filter(a => apptColorFilter.has(a.color));
     function openAddNote() { setNoteDraft(emptyNote()); setEditingNoteId(null); setSelectedNoteId(null); setNoteView("edit"); }
     function openEditNote(n) {
-        setNoteDraft({ title: n.title, type: n.type, content: n.content, topics: n.topics.length ? n.topics : [""], folderId: n.folderId, imageUrl: n.imageUrl });
+        setNoteDraft({ title: n.title, type: n.type, content: n.content, topics: n.topics.length ? n.topics : [""], folderId: n.folderId, imageUrl: getImages(n)[0] || "", imageUrls: getImages(n) });
         setEditingNoteId(n.id);
         setNoteView("edit");
     }
@@ -632,7 +684,7 @@ function App() {
                 searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask })))),
             searchResults.appts.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "APPOINTMENTS", color: C.green }),
-                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt })))),
+                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt })))),
             searchResults.notes.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u2261", label: "NOTES", color: C.amber }),
                 searchResults.notes.map(n => {
@@ -655,7 +707,7 @@ function App() {
             todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No tasks due today."),
             React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "TODAY'S EVENTS", color: C.green }),
-            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt }))
+            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No events today."),
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 8, marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.amber, marginBottom: 10 } }, "// END OF DAY REVIEW"),
@@ -722,7 +774,7 @@ function App() {
                     React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, dueDate: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "No date")),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
                 React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setTaskDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: taskDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: taskDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
-                React.createElement(ImageUploadBtn, { value: taskDraft.imageUrl, onChange: url => setTaskDraft(d => ({ ...d, imageUrl: url })) }),
+                React.createElement(MultiImageUploadBtn, { value: taskDraft.imageUrls || getImages(taskDraft), onChange: urls => setTaskDraft(d => ({ ...d, ...makeImageData(urls) })) }),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "PRIORITY"),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, Object.entries(PRIORITY).map(([k, p]) => (React.createElement("button", { key: k, onClick: () => setTaskDraft(d => ({ ...d, priority: k })), style: { flex: 1, padding: "6px 0", borderRadius: 8, cursor: "pointer", border: taskDraft.priority === k ? `1px solid ${p.color}` : `1px solid ${C.border}`, background: taskDraft.priority === k ? p.bg : C.bg3, fontWeight: 700, fontSize: 10, fontFamily: "inherit", color: taskDraft.priority === k ? p.color : C.muted, letterSpacing: 1 } },
                     p.icon,
@@ -774,10 +826,10 @@ function App() {
                         " ",
                         selDay),
                     ((_a = apptsByDay[selDay]) !== null && _a !== void 0 ? _a : []).length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No events scheduled.")
-                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openEditAppt }))),
+                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openViewAppt }))),
                 !selDay && (React.createElement("div", { style: { marginTop: 18 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
-                    appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt })),
+                    appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt })),
                     appts.length === 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No appointments added."))))),
             calView === "week" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 } },
@@ -804,8 +856,8 @@ function App() {
                         " ",
                         selWeekDay.toLocaleDateString([], { month: "short", day: "numeric" })),
                     ((_c = weekApptsByDay[selWeekDay.toDateString()]) !== null && _c !== void 0 ? _c : []).length === 0
-                        ? React.createElement(DayTimeline, { date: selWeekDay, appts: [], onDelete: deleteAppt, onEdit: openEditAppt })
-                        : React.createElement(DayTimeline, { date: selWeekDay, appts: (_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : [], onDelete: deleteAppt, onEdit: openEditAppt }))),
+                        ? React.createElement(DayTimeline, { date: selWeekDay, appts: [], onDelete: deleteAppt, onEdit: openViewAppt })
+                        : React.createElement(DayTimeline, { date: selWeekDay, appts: (_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : [], onDelete: deleteAppt, onEdit: openViewAppt }))),
                 !selWeekDay && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0", letterSpacing: 1 } }, "Tap a day to see its events."))),
             calView === "list" && (React.createElement("div", null,
                 React.createElement("div", { style: { marginBottom: 14 } },
@@ -818,21 +870,36 @@ function App() {
                             return React.createElement("button", { key: c, onClick: () => toggleColorFilter(c), style: { width: 28, height: 28, borderRadius: 8, background: c, border: "none", cursor: "pointer", outline: active ? `2px solid white` : "2px solid transparent", outlineOffset: 2, opacity: active ? 1 : 0.3 } });
                         }),
                         apptColorFilter.size > 0 && React.createElement("button", { onClick: () => setApptColorFilter(new Set()), style: { padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "CLEAR"))),
-                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt })),
+                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt })),
                 filteredAppts.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                     React.createElement("div", { style: { fontSize: 28, marginBottom: 10 } }, "[ ]"),
                     React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO APPOINTMENTS")))),
-            showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
+            selectedApptId ? (() => {
+                const a = appts.find(x => x.id === selectedApptId);
+                if (!a)
+                    return React.createElement("div", null);
+                const d = new Date(a.date + "T12:00:00");
+                return React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, borderLeft: `3px solid ${a.color}`, marginTop: 14 } },
+                    React.createElement("button", { onClick: () => setSelectedApptId(null), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 12, padding: 0 } }, "\u2190 BACK"),
+                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
+                        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                            React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
+                            React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
+                            (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
+                        React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
+                    getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
+                    React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
+            })() : showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
                 React.createElement("input", { autoFocus: true, placeholder: "Event title", value: apptDraft.title, onChange: e => setApptDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("textarea", { placeholder: "Description (optional)", value: apptDraft.description, onChange: e => setApptDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
-                React.createElement(ImageUploadBtn, { value: apptDraft.imageUrl, onChange: url => setApptDraft(d => ({ ...d, imageUrl: url })) }),
+                React.createElement(MultiImageUploadBtn, { value: apptDraft.imageUrls || getImages(apptDraft), onChange: urls => setApptDraft(d => ({ ...d, ...makeImageData(urls) })) }),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
                     React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value })), style: { ...inp, flex: 1 } })),
-                React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
-                    React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 } },
+                    React.createElement("div", { style: { width: "100%" } },
                         React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "START"),
                         React.createElement("input", { type: "time", value: apptDraft.time, onChange: e => setApptDraft(d => ({ ...d, time: e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } })),
-                    React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                    React.createElement("div", { style: { width: "100%" } },
                         React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "END"),
                         React.createElement("input", { type: "time", value: apptDraft.endTime, onChange: e => setApptDraft(d => ({ ...d, endTime: e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } }))),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
@@ -853,7 +920,7 @@ function App() {
                             React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: C.text, lineHeight: 1.3, marginBottom: 4 } }, n.title),
                             React.createElement("div", { style: { fontSize: 9, color: (folder && folder.color) || C.muted, fontWeight: 700, letterSpacing: 1 } }, n.type === "topic" ? "\u25c8 TOPIC" : "\u2261 TEXT", " \u00b7 ", (folder && folder.name) || "General")),
                         React.createElement("button", { onClick: () => openEditNote(n), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
-                    n.imageUrl && React.createElement("img", { src: n.imageUrl, alt: "", style: { maxWidth: "100%", borderRadius: 10, maxHeight: 190, objectFit: "cover", display: "block", margin: "10px 0" } }),
+                    getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: () => openPlannerImage(getImages(n)[0]), style: { maxWidth: "100%", borderRadius: 10, maxHeight: 190, objectFit: "cover", display: "block", margin: "10px 0" } }),
                     n.type === "descriptive" ? React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 14 } }, n.content || "No content.")
                         : React.createElement("div", { style: { marginTop: 14 } }, (n.topics || []).length ? n.topics.map((t, i) => React.createElement("div", { key: i, style: { fontSize: 13, color: C.text, lineHeight: 1.6, marginBottom: 6 } }, "\u2022 ", t)) : React.createElement("div", { style: { fontSize: 13, color: C.muted } }, "No topics."))));
         })() : noteView === "list" ? (React.createElement(React.Fragment, null,
@@ -892,7 +959,7 @@ function App() {
                                     n.topics.length - 2,
                                     " more"))),
                         React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 } },
-                            n.imageUrl && React.createElement("img", { src: n.imageUrl, alt: "", style: { width: 46, height: 46, borderRadius: 8, objectFit: "cover" } }),
+                            getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: () => openPlannerImage(getImages(n)[0]), style: { width: 46, height: 46, borderRadius: 8, objectFit: "cover" } }),
                             React.createElement("button", { onClick: e => { e.stopPropagation(); deleteNote(n.id); }, style: { background: "#FF44441A", border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 13 } }, "\u00D7")))));
             }),
             visibleNotes.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
@@ -921,7 +988,7 @@ function App() {
                         }, style: { ...inp, flex: 1, padding: "7px 10px", fontSize: 13 } }),
                     noteDraft.topics.length > 1 && React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: d.topics.filter((_, idx) => idx !== i) })), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 18, fontWeight: 700, lineHeight: 1 } }, "\u00D7")))),
                 React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: [...d.topics, ""] })), style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginTop: 4 } }, "+ ADD TOPIC"))),
-            React.createElement(ImageUploadBtn, { value: noteDraft.imageUrl, onChange: url => setNoteDraft(d => ({ ...d, imageUrl: url })) }),
+            React.createElement(MultiImageUploadBtn, { value: noteDraft.imageUrls || getImages(noteDraft), onChange: urls => setNoteDraft(d => ({ ...d, ...makeImageData(urls) })) }),
             React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 6 } },
                 React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
                 React.createElement("button", { onClick: saveNote, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.amber}44` } }, "SAVE NOTE"))))))));
@@ -994,7 +1061,10 @@ function App() {
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px 100px" } }, tabContent),
-        React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "notes" ? openAddNote() : openAddTask(); }, style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, "+")));
+        React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "notes" ? openAddNote() : openAddTask(); }, style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, "+"),
+        lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
+            React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "\u00d7"),
+            React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
 }
 
 
