@@ -13,11 +13,19 @@
   <meta name="theme-color" content="#111115" />
   <style>
     * { box-sizing: border-box; }
+    :root { --sat: env(safe-area-inset-top, 0px); --sar: env(safe-area-inset-right, 0px); --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px); }
     html, body, #root { margin: 0; width: 100%; min-height: 100%; }
     html, body { background: #111115; overflow: hidden; }
-    body { overscroll-behavior: none; font-family: -apple-system, BlinkMacSystemFont, 'IBM Plex Mono', monospace; }
+    body {
+      overscroll-behavior: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'IBM Plex Mono', monospace;
+      padding-top: var(--sat);
+      padding-right: var(--sar);
+      padding-bottom: var(--sab);
+      padding-left: var(--sal);
+    }
     button, input, textarea, select { font: inherit; }
-    #root { height: 100dvh; }
+    #root { height: calc(100dvh - var(--sat) - var(--sab)); }
     #boot-error { color: #E8E8F0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; display:none; }
   </style>
   <script>
