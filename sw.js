@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v12-context-add-notes-focus-fixed';
+const CACHE_NAME = 'adhd-planner-v13-combined';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
