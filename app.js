@@ -204,7 +204,7 @@ function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixe
         onClose();
     }
     return (React.createElement("div", { style: { position: fixed ? "fixed" : "absolute", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 300, display: "flex", alignItems: "flex-end" }, onClick: onClose },
-        React.createElement("div", { style: { width: "100%", background: C.bg2, borderRadius: "24px 24px 0 0", padding: "20px 16px 36px", border: `1px solid ${C.border}` }, onClick: e => e.stopPropagation() },
+        React.createElement("div", { style: { width: "100%", background: C.bg2, borderRadius: "24px 24px 0 0", padding: "20px 16px calc(36px + env(safe-area-inset-bottom, 0px) + 20px)", border: `1px solid ${C.border}`, maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 16px)", overflowY: "auto" }, onClick: e => e.stopPropagation() },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent } }, "// QUICK CAPTURE"),
                 React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", fontWeight: 700 } }, "\u00D7")),
