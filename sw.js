@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-upgrade-v9';
+const CACHE_NAME = 'adhd-planner-v10-calendar-timeline';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

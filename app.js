@@ -77,6 +77,25 @@ function occursOn(appt, dateStr) {
         return target.getDate() === start.getDate();
     return false;
 }
+function timeToMinutes(t) {
+    if (!t || !t.includes(":"))
+        return null;
+    const parts = t.split(":").map(Number);
+    const h = parts[0], m = parts[1];
+    if (Number.isNaN(h) || Number.isNaN(m))
+        return null;
+    return h * 60 + m;
+}
+function eventDurationMinutes(appt) {
+    const start = timeToMinutes(appt.time);
+    const end = timeToMinutes(appt.endTime);
+    if (start === null)
+        return 60;
+    if (end === null || end <= start)
+        return 60;
+    return end - start;
+}
+
 function readImageFile(file) {
     return new Promise(r => { const fr = new FileReader(); fr.onload = e => { var _a, _b; return r((_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.result) !== null && _b !== void 0 ? _b : ""); }; fr.readAsDataURL(file); });
 }
@@ -214,7 +233,7 @@ function ApptCard({ appt, onDelete, onEdit }) {
             React.createElement("div", { style: { flex: 1, cursor: hasExtra ? "pointer" : "default" }, onClick: () => hasExtra && setExpanded(!expanded) },
                 React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, appt.title),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap", alignItems: "center" } },
-                    appt.time && React.createElement("span", { style: { fontSize: 10, color: C.muted, letterSpacing: 1 } }, appt.time),
+                    appt.time && React.createElement("span", { style: { fontSize: 10, color: C.muted, letterSpacing: 1 } }, appt.time + (appt.endTime ? `–${appt.endTime}` : "")),
                     appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 1 } }, recurLabel[appt.recurrence]),
                     hasExtra && React.createElement("span", { style: { fontSize: 9, color: C.dim } }, expanded ? "▲ less" : "▼ more"))),
             React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
@@ -224,6 +243,46 @@ function ApptCard({ appt, onDelete, onEdit }) {
             appt.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: appt.imageUrl ? 8 : 0 } }, appt.description),
             appt.imageUrl && React.createElement("img", { src: appt.imageUrl, alt: "", style: { maxWidth: "100%", borderRadius: 8, maxHeight: 160, objectFit: "cover", display: "block" } })))));
 }
+
+function DayTimeline({ date, appts, onEdit, onDelete }) {
+    var _a;
+    const sorted = [...appts].sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
+    const startHour = 5;
+    const endHour = 22;
+    const hourHeight = 58;
+    const timelineHeight = (endHour - startHour + 1) * hourHeight;
+    const noTime = sorted.filter(a => !a.time);
+    const timed = sorted.filter(a => a.time);
+    return (React.createElement("div", { style: { marginTop: 14 } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+            React.createElement("div", null,
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 4 } }, "// DAY TIMELINE"),
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: C.text, letterSpacing: 1.5 } }, date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }).toUpperCase())),
+            React.createElement("div", { style: { fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 1 } }, sorted.length, " EVENT", sorted.length === 1 ? "" : "S")),
+        noTime.length > 0 && React.createElement("div", { style: { marginBottom: 10 } },
+            React.createElement("div", { style: { fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 2, marginBottom: 6 } }, "NO TIME"),
+            noTime.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: onDelete, onEdit: onEdit }))),
+        timed.length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, noTime.length ? "" : "No timed events.")
+            : React.createElement("div", { style: { position: "relative", minHeight: timelineHeight, borderLeft: `1px solid ${C.border}`, marginLeft: 50, paddingBottom: 20 } },
+                Array.from({ length: endHour - startHour + 1 }).map((_, i) => {
+                    const hour = startHour + i;
+                    return React.createElement("div", { key: hour, style: { position: "absolute", top: i * hourHeight, left: 0, right: 0, height: 1, background: C.border } },
+                        React.createElement("div", { style: { position: "absolute", left: -50, top: -9, width: 40, textAlign: "right", fontSize: 10, color: C.muted, fontWeight: 600 } }, String(hour).padStart(2, "0"), ":00"));
+                }),
+                timed.map((a, idx) => {
+                    const start = timeToMinutes(a.time) ?? startHour * 60;
+                    const top = Math.max(0, ((start - startHour * 60) / 60) * hourHeight);
+                    const duration = eventDurationMinutes(a);
+                    const height = Math.max(42, (duration / 60) * hourHeight - 4);
+                    const slightOffset = (idx % 2) * 8;
+                    return React.createElement("div", { key: a.id, onClick: () => onEdit(a), style: { position: "absolute", top, left: 12 + slightOffset, right: 0, minHeight: height, borderRadius: 10, background: a.color + "33", border: `1px solid ${a.color}55`, borderLeft: `4px solid ${a.color}`, boxShadow: `0 0 16px ${a.color}22`, padding: "9px 10px", cursor: "pointer", overflow: "hidden" } },
+                        React.createElement("button", { onClick: e => { e.stopPropagation(); onDelete(a.id); }, style: { position: "absolute", right: 7, top: 6, background: "transparent", border: "none", color: a.color, fontWeight: 900, fontSize: 13, cursor: "pointer" } }, "\u00d7"),
+                        React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: a.color, lineHeight: 1.25, paddingRight: 18 } }, a.title),
+                        React.createElement("div", { style: { fontSize: 10, color: a.color, marginTop: 3, fontWeight: 700, letterSpacing: 0.5 } }, a.time, a.endTime ? ` \u2013 ${a.endTime}` : ""),
+                        a.description && height > 64 && React.createElement("div", { style: { fontSize: 10, color: C.muted, marginTop: 5, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, a.description));
+                }))));
+}
+
 function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixed }) {
     var _a, _b, _c, _d;
     const [text, setText] = useState("");
@@ -284,7 +343,7 @@ function App() {
     const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", dueDate: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
-    const appts = rawAppts.map(a => ({ recurrence: "none", ...a }));
+    const appts = rawAppts.map(a => ({ endTime: "", recurrence: "none", ...a }));
     const [calView, setCalView] = useState("grid");
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -293,7 +352,7 @@ function App() {
     const [apptColorFilter, setApptColorFilter] = useState(new Set());
     const [showApptForm, setShowApptForm] = useState(false);
     const [editingApptId, setEditingApptId] = useState(null);
-    const emptyAppt = () => ({ title: "", date: "", time: "", color: C.accent, description: "", imageUrl: "", recurrence: "none" });
+    const emptyAppt = () => ({ title: "", date: "", time: "", endTime: "", color: C.accent, description: "", imageUrl: "", recurrence: "none" });
     const [apptDraft, setApptDraft] = useState(emptyAppt);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
     const [folders, setFolders] = useLocalState("adhd3_folders", DEFAULT_FOLDERS);
@@ -374,7 +433,7 @@ function App() {
     function openAddAppt() { setApptDraft(emptyAppt()); setEditingApptId(null); setShowApptForm(true); }
     function openEditAppt(a) {
         var _a;
-        setApptDraft({ title: a.title, date: a.date, time: a.time, color: a.color, description: a.description, imageUrl: a.imageUrl, recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setApptDraft({ title: a.title, date: a.date, time: a.time, endTime: a.endTime || "", color: a.color, description: a.description, imageUrl: a.imageUrl, recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
         setEditingApptId(a.id);
         setShowApptForm(true);
     }
@@ -526,7 +585,7 @@ function App() {
         return ((_c = rank[a.priority]) !== null && _c !== void 0 ? _c : 9) - ((_d = rank[b.priority]) !== null && _d !== void 0 ? _d : 9);
     });
     const todayTasks = tasks.filter(t => !t.done && isTodayStr(t.dueDate));
-    const todayAppts = appts.filter(a => occursOn(a, todayStr())).sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+    const todayAppts = appts.filter(a => occursOn(a, todayStr())).sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
     const overdueTasks = relevantTasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr());
     const done = tasks.filter(t => t.done).length;
     const total = tasks.length;
@@ -679,7 +738,7 @@ function App() {
                         " ",
                         selDay),
                     ((_a = apptsByDay[selDay]) !== null && _a !== void 0 ? _a : []).length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No events scheduled.")
-                        : ((_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : []).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt })))),
+                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openEditAppt }))),
                 !selDay && (React.createElement("div", { style: { marginTop: 18 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
                     appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt })),
@@ -732,8 +791,14 @@ function App() {
                 React.createElement("textarea", { placeholder: "Description (optional)", value: apptDraft.description, onChange: e => setApptDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
                 React.createElement(ImageUploadBtn, { value: apptDraft.imageUrl, onChange: url => setApptDraft(d => ({ ...d, imageUrl: url })) }),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
-                    React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value })), style: { ...inp, flex: 1 } }),
-                    React.createElement("input", { type: "time", value: apptDraft.time, onChange: e => setApptDraft(d => ({ ...d, time: e.target.value })), style: { ...inp, flex: 1 } })),
+                    React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value })), style: { ...inp, flex: 1 } })),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+                    React.createElement("div", { style: { flex: 1 } },
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "START"),
+                        React.createElement("input", { type: "time", value: apptDraft.time, onChange: e => setApptDraft(d => ({ ...d, time: e.target.value })), style: { ...inp } })),
+                    React.createElement("div", { style: { flex: 1 } },
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "END"),
+                        React.createElement("input", { type: "time", value: apptDraft.endTime, onChange: e => setApptDraft(d => ({ ...d, endTime: e.target.value })), style: { ...inp } }))),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
                 React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setApptDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: apptDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: apptDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
                 React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setApptDraft(d => ({ ...d, color: c })), style: { width: 26, height: 26, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: apptDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: apptDraft.color === c ? 1 : 0.4 } }))),
