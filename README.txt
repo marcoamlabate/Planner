@@ -1,10 +1,22 @@
-Upload these files to your GitHub repository root, replacing the old ones:
+ADHD Planner upgrade v9
+
+Replace these files in your GitHub repository root:
 
 index.html
 app.js
-manifest.webmanifest
 sw.js
+manifest.webmanifest
 icon.png
-README.txt
 
-Then open your Pages URL in Safari and refresh. If it still shows old content, add ?v=2 to the end of the URL once.
+Then open:
+https://marcoamlabate.github.io/Planner/?v=9
+
+After Safari shows the updated app, delete the old Home Screen icon and add it again.
+
+Added:
+- Today screen
+- Backup/export and import/restore
+- Recurring tasks
+- Visual today/overdue/recurring badges
+- Better task filters and sorting
+- End-of-day review

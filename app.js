@@ -20,14 +20,14 @@ function useLocalState(key, init) {
             const s = localStorage.getItem(key);
             return s ? JSON.parse(s) : init;
         }
-        catch (_a) {
+        catch {
             return init;
         }
     });
     useEffect(() => { try {
         localStorage.setItem(key, JSON.stringify(val));
     }
-    catch (_a) { } }, [key, val]);
+    catch { } }, [key, val]);
     return [val, setVal];
 }
 function useWindowWidth() {
@@ -42,6 +42,41 @@ function useWindowWidth() {
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(y, m) { return new Date(y, m, 1).getDay(); }
 function todayStr() { return new Date().toISOString().split("T")[0]; }
+function addDaysStr(dateStr, days) {
+    const d = new Date(dateStr + "T12:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split("T")[0];
+}
+function nextDueDate(dateStr, recurrence) {
+    const d = new Date(dateStr + "T12:00:00");
+    if (recurrence === "daily")
+        d.setDate(d.getDate() + 1);
+    else if (recurrence === "weekly")
+        d.setDate(d.getDate() + 7);
+    else if (recurrence === "monthly")
+        d.setMonth(d.getMonth() + 1);
+    else
+        return dateStr;
+    return d.toISOString().split("T")[0];
+}
+function isTodayStr(dateStr) { return !!dateStr && dateStr === todayStr(); }
+function occursOn(appt, dateStr) {
+    if (!appt.date)
+        return false;
+    if (appt.date === dateStr)
+        return true;
+    const target = new Date(dateStr + "T12:00:00");
+    const start = new Date(appt.date + "T12:00:00");
+    if (target < start)
+        return false;
+    if (appt.recurrence === "daily")
+        return true;
+    if (appt.recurrence === "weekly")
+        return target.getDay() === start.getDay();
+    if (appt.recurrence === "monthly")
+        return target.getDate() === start.getDate();
+    return false;
+}
 function readImageFile(file) {
     return new Promise(r => { const fr = new FileReader(); fr.onload = e => { var _a, _b; return r((_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.result) !== null && _b !== void 0 ? _b : ""); }; fr.readAsDataURL(file); });
 }
@@ -118,7 +153,7 @@ function SectionHeader({ icon, label, color }) {
         React.createElement("div", { style: { flex: 1, height: 1, background: color + "33" } })));
 }
 function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtask, onAddSubtask }) {
-    var _a;
+    var _a, _b;
     const [expanded, setExpanded] = useState(false);
     const [newSub, setNewSub] = useState("");
     const p = PRIORITY[task.priority];
@@ -126,6 +161,8 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     const subs = (_a = task.subtasks) !== null && _a !== void 0 ? _a : [];
     const subDone = subs.filter(s => s.done).length;
     const isOverdue = !task.done && task.dueDate && task.dueDate < todayStr();
+    const isToday = !task.done && isTodayStr(task.dueDate);
+    const recurLabel = { daily: "↺ DAILY", weekly: "↺ WEEKLY", monthly: "↺ MONTHLY" };
     const hasExtra = !!(task.description || task.imageUrl || subs.length);
     return (React.createElement("div", { style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 6, border: `1px solid ${C.border}`, borderLeft: task.done ? `2px solid ${C.dim}` : isOverdue ? `2px solid ${C.red}` : `2px solid ${p.color}`, opacity: task.done ? 0.45 : 1, transition: "opacity 0.3s" } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
@@ -133,11 +170,12 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
             React.createElement("div", { style: { flex: 1, cursor: "pointer" }, onClick: () => hasExtra && setExpanded(!expanded) },
                 React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: task.done ? C.muted : C.text, textDecoration: task.done ? "line-through" : "none", letterSpacing: 0.3 } }, task.text),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" } },
-                    !task.done && React.createElement("span", { style: { fontSize: 9, fontWeight: 700, color: isOverdue ? C.red : p.color, letterSpacing: 2 } }, isOverdue ? "⚠ OVERDUE" : `${p.icon} ${p.label}`),
+                    !task.done && React.createElement("span", { style: { fontSize: 9, fontWeight: 700, color: isOverdue ? C.red : isToday ? C.green : p.color, letterSpacing: 2 } }, isOverdue ? "⚠ OVERDUE" : isToday ? "● TODAY" : `${p.icon} ${p.label}`),
                     cat && React.createElement("span", { style: { fontSize: 9, fontWeight: 700, color: cat.color, background: cat.color + "18", padding: "1px 6px", borderRadius: 10, letterSpacing: 1 } }, cat.name),
-                    task.dueDate && !task.done && React.createElement("span", { style: { fontSize: 9, color: isOverdue ? C.red : C.muted, letterSpacing: 1 } },
+                    task.dueDate && !task.done && React.createElement("span", { style: { fontSize: 9, color: isOverdue ? C.red : isToday ? C.green : C.muted, letterSpacing: 1 } },
                         "\uD83D\uDCC5 ",
                         task.dueDate),
+                    ((_b = task.recurrence) !== null && _b !== void 0 ? _b : "none") !== "none" && !task.done && React.createElement("span", { style: { fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 1 } }, recurLabel[task.recurrence]),
                     subs.length > 0 && React.createElement("span", { style: { fontSize: 9, color: subDone === subs.length ? C.green : C.muted, letterSpacing: 1 } },
                         "\u2611 ",
                         subDone,
@@ -203,8 +241,8 @@ function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixe
             onAddNote(text.trim(), folderId);
         onClose();
     }
-    return (React.createElement("div", { style: { position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 300, display: "flex", alignItems: "flex-end" }, onClick: onClose },
-        React.createElement("div", { style: { width: "100%", background: C.bg2, borderRadius: "24px 24px 0 0", padding: "20px 16px 44px", border: `1px solid ${C.border}` }, onClick: e => e.stopPropagation() },
+    return (React.createElement("div", { style: { position: fixed ? "fixed" : "absolute", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 300, display: "flex", alignItems: "flex-end" }, onClick: onClose },
+        React.createElement("div", { style: { width: "100%", background: C.bg2, borderRadius: "24px 24px 0 0", padding: "20px 16px 36px", border: `1px solid ${C.border}` }, onClick: e => e.stopPropagation() },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent } }, "// QUICK CAPTURE"),
                 React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", fontWeight: 700 } }, "\u00D7")),
@@ -230,15 +268,20 @@ function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const searchRef = useRef(null);
     const [showCapture, setShowCapture] = useState(false);
+    const importRef = useRef(null);
+    const [reviewDraft, setReviewDraft] = useState({ done: "", move: "", tomorrow: "" });
+    const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
     const [rawTasks, setTasks] = useLocalState("adhd3_tasks", []);
-    const tasks = rawTasks.map(t => ({ dueDate: "", subtasks: [], ...t }));
+    const tasks = rawTasks.map(t => ({ dueDate: "", recurrence: "none", subtasks: [], ...t }));
     const [categories, setCategories] = useLocalState("adhd3_cats", DEFAULT_CATEGORIES);
     const [taskCatFilter, setTaskCatFilter] = useState("all");
+    const [taskViewFilter, setTaskViewFilter] = useState("all");
+    const [taskSort, setTaskSort] = useState("priority");
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [showCatMgr, setShowCatMgr] = useState(false);
     const [catDraft, setCatDraft] = useState({ name: "", color: ACCENT_COLORS[4] });
-    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", dueDate: "", subtasks: [] }); };
+    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", dueDate: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
     const appts = rawAppts.map(a => ({ recurrence: "none", ...a }));
@@ -278,8 +321,8 @@ function App() {
     }, [searchQuery, rawTasks, rawAppts, notes]);
     function openAddTask() { setTaskDraft(emptyTask()); setEditingTaskId(null); setShowTaskForm(true); }
     function openEditTask(t) {
-        var _a, _b;
-        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: t.imageUrl, dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", subtasks: (_b = t.subtasks) !== null && _b !== void 0 ? _b : [] });
+        var _a, _b, _c;
+        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: t.imageUrl, dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
         setEditingTaskId(t.id);
         setShowTaskForm(true);
     }
@@ -293,7 +336,18 @@ function App() {
         setShowTaskForm(false);
         setEditingTaskId(null);
     }
-    function toggleTask(id) { setTasks((p) => p.map(t => t.id === id ? { ...t, done: !t.done } : t)); }
+    function toggleTask(id) {
+        setTasks((p) => p.map(t => {
+            var _a;
+            if (t.id !== id)
+                return t;
+            const recurrence = (_a = t.recurrence) !== null && _a !== void 0 ? _a : "none";
+            if (!t.done && recurrence !== "none" && t.dueDate) {
+                return { ...t, dueDate: nextDueDate(t.dueDate, recurrence), done: false };
+            }
+            return { ...t, done: !t.done };
+        }));
+    }
     function deleteTask(id) { setTasks((p) => p.filter(t => t.id !== id)); }
     function toggleSubtask(taskId, subId) {
         setTasks((p) => p.map(t => { var _a; return t.id === taskId ? { ...t, subtasks: ((_a = t.subtasks) !== null && _a !== void 0 ? _a : []).map((s) => s.id === subId ? { ...s, done: !s.done } : s) } : t; }));
@@ -315,7 +369,7 @@ function App() {
         setTasks((p) => p.map(t => { var _a, _b; return t.categoryId === id ? { ...t, categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal" } : t; }));
     }
     function quickAddTask(text, categoryId) {
-        setTasks((p) => [...p, { id: Date.now(), text, description: "", priority: "medium", done: false, categoryId, imageUrl: "", dueDate: "", subtasks: [] }]);
+        setTasks((p) => [...p, { id: Date.now(), text, description: "", priority: "medium", done: false, categoryId, imageUrl: "", dueDate: "", recurrence: "none", subtasks: [] }]);
     }
     function openAddAppt() { setApptDraft(emptyAppt()); setEditingApptId(null); setShowApptForm(true); }
     function openEditAppt(a) {
@@ -373,6 +427,50 @@ function App() {
         const now = Date.now();
         setNotes(p => [...p, { id: now, createdAt: now, title, type: "descriptive", content: "", topics: [], folderId, imageUrl: "" }]);
     }
+    function exportBackup() {
+        const data = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            motivation, tasks, categories, appts, notes, folders, reviews
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `adhd-planner-backup-${todayStr()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    async function importBackupFile(file) {
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+            if (data.motivation)
+                setMotivation(data.motivation);
+            if (Array.isArray(data.tasks))
+                setTasks(data.tasks);
+            if (Array.isArray(data.categories))
+                setCategories(data.categories);
+            if (Array.isArray(data.appts))
+                setAppts(data.appts);
+            if (Array.isArray(data.notes))
+                setNotes(data.notes);
+            if (Array.isArray(data.folders))
+                setFolders(data.folders);
+            if (Array.isArray(data.reviews))
+                setReviews(data.reviews);
+            alert("Backup imported.");
+        }
+        catch {
+            alert("Could not import that backup file.");
+        }
+    }
+    function saveReview() {
+        if (!reviewDraft.done.trim() && !reviewDraft.move.trim() && !reviewDraft.tomorrow.trim())
+            return;
+        setReviews(p => [{ id: Date.now(), date: todayStr(), ...reviewDraft }, ...p].slice(0, 30));
+        setReviewDraft({ done: "", move: "", tomorrow: "" });
+    }
     const daysInMonth = getDaysInMonth(calYear, calMonth);
     const firstDay = getFirstDay(calYear, calMonth);
     const apptsByDay = useMemo(() => getOccurrencesForMonth(appts, calYear, calMonth), [rawAppts, calYear, calMonth]);
@@ -410,7 +508,25 @@ function App() {
         }
         return res;
     }, [rawAppts, weekStart]);
-    const relevantTasks = taskCatFilter === "all" ? tasks : tasks.filter(t => t.categoryId === taskCatFilter);
+    const baseRelevantTasks = taskCatFilter === "all" ? tasks : tasks.filter(t => t.categoryId === taskCatFilter);
+    const relevantTasks = [...baseRelevantTasks]
+        .filter(t => taskViewFilter === "all" ? true
+        : taskViewFilter === "today" ? !t.done && isTodayStr(t.dueDate)
+            : taskViewFilter === "overdue" ? !t.done && t.dueDate && t.dueDate < todayStr()
+                : taskViewFilter === "nodate" ? !t.done && !t.dueDate
+                    : taskViewFilter === "high" ? !t.done && t.priority === "high"
+                        : true)
+        .sort((a, b) => {
+        var _a, _b, _c, _d;
+        if (taskSort === "due")
+            return (a.dueDate || "9999-99-99").localeCompare(b.dueDate || "9999-99-99");
+        if (taskSort === "category")
+            return (((_a = categories.find(c => c.id === a.categoryId)) === null || _a === void 0 ? void 0 : _a.name) || "").localeCompare(((_b = categories.find(c => c.id === b.categoryId)) === null || _b === void 0 ? void 0 : _b.name) || "");
+        const rank = { high: 0, medium: 1, low: 2 };
+        return ((_c = rank[a.priority]) !== null && _c !== void 0 ? _c : 9) - ((_d = rank[b.priority]) !== null && _d !== void 0 ? _d : 9);
+    });
+    const todayTasks = tasks.filter(t => !t.done && isTodayStr(t.dueDate));
+    const todayAppts = appts.filter(a => occursOn(a, todayStr())).sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
     const overdueTasks = relevantTasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr());
     const done = tasks.filter(t => t.done).length;
     const total = tasks.length;
@@ -438,11 +554,48 @@ function App() {
                         React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 1, marginTop: 3 } }, (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
                         n.content && React.createElement("div", { style: { fontSize: 11, color: C.muted, marginTop: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, n.content)));
                 }))))),
+        !searchOpen && tab === "today" && (React.createElement("div", null,
+            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginBottom: 14 } },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 8 } }, "// TODAY"),
+                React.createElement("div", { style: { color: C.text, fontSize: 18, fontWeight: 800, letterSpacing: 2 } }, today.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }).toUpperCase()),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" } },
+                    React.createElement(CatPill, { label: `${todayTasks.length} TASKS`, active: true, color: todayTasks.length ? C.accent : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("today"); } }),
+                    React.createElement(CatPill, { label: `${todayAppts.length} EVENTS`, active: true, color: todayAppts.length ? C.green : C.dim, onClick: () => setTab("calendar") }),
+                    React.createElement(CatPill, { label: `${tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr()).length} OVERDUE`, active: true, color: tasks.some(t => !t.done && t.dueDate && t.dueDate < todayStr()) ? C.red : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("overdue"); } }))),
+            React.createElement(SectionHeader, { icon: "\u22A1", label: "TODAY'S TASKS", color: C.accent }),
+            todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask }))
+                : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No tasks due today."),
+            React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "TODAY'S EVENTS", color: C.green }),
+            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt }))
+                : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No events today."),
+            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 8, marginBottom: 14 } },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.amber, marginBottom: 10 } }, "// END OF DAY REVIEW"),
+                React.createElement("textarea", { placeholder: "What did I finish?", value: reviewDraft.done, onChange: e => setReviewDraft(d => ({ ...d, done: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
+                React.createElement("textarea", { placeholder: "What should move to tomorrow?", value: reviewDraft.move, onChange: e => setReviewDraft(d => ({ ...d, move: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
+                React.createElement("input", { placeholder: "One thing for tomorrow", value: reviewDraft.tomorrow, onChange: e => setReviewDraft(d => ({ ...d, tomorrow: e.target.value })), style: { ...inp, marginBottom: 10 } }),
+                React.createElement("button", { onClick: saveReview, style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "SAVE REVIEW"),
+                reviews[0] && React.createElement("div", { style: { fontSize: 10, color: C.muted, marginTop: 10 } },
+                    "Last review saved: ",
+                    reviews[0].date)),
+            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}` } },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.green, marginBottom: 10 } }, "// BACKUP"),
+                React.createElement("input", { ref: importRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: e => { var _a; const f = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0]; if (f)
+                        importBackupFile(f); if (e.target)
+                        e.target.value = ""; } }),
+                React.createElement("div", { style: { display: "flex", gap: 8 } },
+                    React.createElement("button", { onClick: exportBackup, style: { flex: 1, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "EXPORT"),
+                    React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "IMPORT"))))),
         !searchOpen && tab === "tasks" && (React.createElement("div", null,
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
                 React.createElement(CatPill, { label: "ALL", active: taskCatFilter === "all", color: C.accent, onClick: () => setTaskCatFilter("all") }),
                 categories.map(cat => React.createElement(CatPill, { key: cat.id, label: cat.name.toUpperCase(), active: taskCatFilter === cat.id, color: cat.color, onClick: () => setTaskCatFilter(cat.id) })),
                 React.createElement("button", { onClick: () => setShowCatMgr(!showCatMgr), style: { padding: "4px 8px", borderRadius: 20, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.dim, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "\u2699")),
+            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
+                [["all", "ALL"], ["today", "TODAY"], ["overdue", "OVERDUE"], ["nodate", "NO DATE"], ["high", "HIGH"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setTaskViewFilter(key), style: { padding: "5px 9px", borderRadius: 10, border: taskViewFilter === key ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskViewFilter === key ? C.accent + "22" : C.bg2, color: taskViewFilter === key ? C.accent : C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit", letterSpacing: 1 } }, label))),
+                React.createElement("select", { value: taskSort, onChange: e => setTaskSort(e.target.value), style: { ...inp, width: "auto", padding: "5px 8px", fontSize: 9, color: C.muted } },
+                    React.createElement("option", { value: "priority" }, "SORT: PRIORITY"),
+                    React.createElement("option", { value: "due" }, "SORT: DUE DATE"),
+                    React.createElement("option", { value: "category" }, "SORT: CATEGORY"))),
             showCatMgr && (React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 10 } }, "// CATEGORIES"),
                 categories.map(cat => (React.createElement("div", { key: cat.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
@@ -478,6 +631,8 @@ function App() {
                 React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
                     React.createElement("input", { type: "date", value: taskDraft.dueDate, onChange: e => setTaskDraft(d => ({ ...d, dueDate: e.target.value })), style: { ...inp, flex: 1, fontSize: 12 } }),
                     React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, dueDate: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "No date")),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
+                React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setTaskDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: taskDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: taskDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
                 React.createElement(ImageUploadBtn, { value: taskDraft.imageUrl, onChange: url => setTaskDraft(d => ({ ...d, imageUrl: url })) }),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "PRIORITY"),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, Object.entries(PRIORITY).map(([k, p]) => (React.createElement("button", { key: k, onClick: () => setTaskDraft(d => ({ ...d, priority: k })), style: { flex: 1, padding: "6px 0", borderRadius: 8, cursor: "pointer", border: taskDraft.priority === k ? `1px solid ${p.color}` : `1px solid ${C.border}`, background: taskDraft.priority === k ? p.bg : C.bg3, fontWeight: 700, fontSize: 10, fontFamily: "inherit", color: taskDraft.priority === k ? p.color : C.muted, letterSpacing: 1 } },
@@ -682,14 +837,14 @@ function App() {
                     React.createElement("div", { style: { height: 3, background: C.bg4, borderRadius: 3, overflow: "hidden" } },
                         React.createElement("div", { style: { height: "100%", borderRadius: 3, background: pct === 100 ? C.green : `linear-gradient(90deg, ${C.accent}, ${C.accentD})`, width: `${pct}%`, transition: "width 0.5s", boxShadow: `0 0 6px ${C.accent}88` } })))),
                 React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 3, color: C.dim, marginBottom: 8 } }, "NAVIGATE"),
-                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, [["tasks", "⊡", "TASKS"], ["calendar", "📅", "CALENDAR"], ["notes", "≡", "NOTES"]].map(([key, icon, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { padding: "11px 14px", background: tab === key ? C.accent + "22" : "transparent", border: tab === key ? `1px solid ${C.accent}44` : `1px solid transparent`, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 1.5, color: tab === key ? C.accent : C.muted, textAlign: "left", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", transition: "all 0.15s" } },
+                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, [["today", "◉", "TODAY"], ["tasks", "⊡", "TASKS"], ["calendar", "📅", "CALENDAR"], ["notes", "≡", "NOTES"]].map(([key, icon, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { padding: "11px 14px", background: tab === key ? C.accent + "22" : "transparent", border: tab === key ? `1px solid ${C.accent}44` : `1px solid transparent`, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 1.5, color: tab === key ? C.accent : C.muted, textAlign: "left", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", transition: "all 0.15s" } },
                     React.createElement("span", null, icon),
                     React.createElement("span", null, label))))),
                 React.createElement("div", { style: { flex: 1 } }),
                 React.createElement("button", { onClick: () => setShowCapture(true), style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: `0 0 20px ${C.accent}44`, marginTop: 24 } }, "+ QUICK CAPTURE")),
             React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } },
                 React.createElement("div", { style: { height: 52, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 32px", gap: 12, flexShrink: 0, background: C.bg1 } },
-                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : "≡ NOTES"),
+                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "today" ? "◉ TODAY" : tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : "≡ NOTES"),
                     React.createElement("div", { style: { flex: 1 } }),
                     searchOpen && (React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, width: 300, padding: "7px 14px", border: `1px solid ${C.accent}66` } })),
                     React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" } }, "\uD83D\uDD0D")),
