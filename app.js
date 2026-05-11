@@ -48,6 +48,22 @@ function formatBrDate(dateStr) {
     const [y, m, d] = dateStr.split("-");
     return d + "/" + m + "/" + y;
 }
+function shortcutFriendlyDateTime(dateStr, timeStr) {
+    if (!dateStr)
+        return "";
+    const safeTime = timeStr || "09:00";
+    const d = new Date(`${dateStr}T${safeTime}:00`);
+    if (Number.isNaN(d.getTime()))
+        return "";
+    return d.toLocaleString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+    });
+}
 function addDaysStr(dateStr, days) {
     const d = new Date(dateStr + "T12:00:00");
     d.setDate(d.getDate() + days);
@@ -644,11 +660,13 @@ function App() {
         const cat = categories.find(c => c.id === t.categoryId);
         const dueDate = t.dueDate || "";
         const dueDateTime = dueDate ? `${dueDate}T09:00:00` : "";
+        const dueDateText = dueDate ? shortcutFriendlyDateTime(dueDate, "09:00") : "";
         const notes = [
             t.description || "",
             cat ? "Category: " + cat.name : "",
             t.priority ? "Priority: " + String(t.priority).toUpperCase() : "",
             dueDate ? "Planner Due Date: " + dueDate : "",
+            dueDateText ? "Planner Due Date Text: " + dueDateText : "",
             "Planner ID: " + plannerId("task", t.id)
         ].filter(Boolean).join("\n\n");
         return {
@@ -658,6 +676,7 @@ function App() {
             notes,
             dueDate,
             dueDateTime,
+            dueDateText,
             priority: t.priority || "medium",
             completed: !!t.done
         };
@@ -669,11 +688,15 @@ function App() {
         const cleanEndTime = endTime || fallbackEnd;
         const startDateTime = a.date && startTime ? `${a.date}T${startTime}:00` : "";
         const endDateTime = a.date && cleanEndTime ? `${a.date}T${cleanEndTime}:00` : "";
+        const startDateText = a.date && startTime ? shortcutFriendlyDateTime(a.date, startTime) : "";
+        const endDateText = a.date && cleanEndTime ? shortcutFriendlyDateTime(a.date, cleanEndTime) : "";
         const notes = [
             a.description || "",
             a.recurrence && a.recurrence !== "none" ? "Recurrence: " + a.recurrence : "",
             startDateTime ? "Planner Start: " + startDateTime : "",
             endDateTime ? "Planner End: " + endDateTime : "",
+            startDateText ? "Planner Start Text: " + startDateText : "",
+            endDateText ? "Planner End Text: " + endDateText : "",
             "Planner ID: " + plannerId("event", a.id)
         ].filter(Boolean).join("\n\n");
         return {
@@ -686,6 +709,8 @@ function App() {
             endTime: cleanEndTime,
             startDateTime,
             endDateTime,
+            startDateText,
+            endDateText,
             recurrence: a.recurrence || "none"
         };
     }
