@@ -662,7 +662,7 @@ function App() {
         const notes = [
             t.description || "",
             cat ? "Category: " + cat.name : "",
-            t.priority ? "Priority: " + String(t.priority).toUpperCase() : "",
+            t.priority ? "Priority: " + String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "",
             dueDate ? "Planner Due Date: " + dueDate : "",
             dueDateText ? "Planner Due Date Text: " + dueDateText : "",
             "Planner ID: " + plannerId("task", t.id)
