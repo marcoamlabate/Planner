@@ -55,14 +55,12 @@ function shortcutFriendlyDateTime(dateStr, timeStr) {
     const d = new Date(`${dateStr}T${safeTime}:00`);
     if (Number.isNaN(d.getTime()))
         return "";
-    return d.toLocaleString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true
-    });
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = d.toLocaleString("en-US", { month: "short" });
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${day} ${month} ${year} at ${hours}:${minutes}`;
 }
 function addDaysStr(dateStr, days) {
     const d = new Date(dateStr + "T12:00:00");

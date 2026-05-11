@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v20-shortcuts-friendly-dates';
+const CACHE_NAME = 'adhd-planner-v21-shortcuts-exact-date-format';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
