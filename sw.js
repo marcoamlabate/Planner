@@ -1,6 +1,6 @@
-const CACHE_NAME = 'adhd-planner-v15-storage-date-cleanup';
+const CACHE_NAME = 'adhd-planner-v16-apple-shortcuts-export';
 const APP_SHELL = [
-  './', './index.html', './app.js', './v15-loader.js', './manifest.webmanifest', './icon.png',
+  './', './index.html', './app.js', './v15-loader.js', './v16-loader.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
   'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js'
 ];
