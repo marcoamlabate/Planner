@@ -42,6 +42,12 @@ function useWindowWidth() {
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(y, m) { return new Date(y, m, 1).getDay(); }
 function todayStr() { return new Date().toISOString().split("T")[0]; }
+function formatBrDate(dateStr) {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr))
+        return dateStr || "";
+    const [y, m, d] = dateStr.split("-");
+    return d + "/" + m + "/" + y;
+}
 function addDaysStr(dateStr, days) {
     const d = new Date(dateStr + "T12:00:00");
     d.setDate(d.getDate() + days);
@@ -107,8 +113,44 @@ function weekStartFromDate(d) {
     return n;
 }
 
-function readImageFile(file) {
+function readImageFileRaw(file) {
     return new Promise(r => { const fr = new FileReader(); fr.onload = e => { var _a, _b; return r((_b = (_a = e.target) === null || _a === void 0 ? void 0 : _a.result) !== null && _b !== void 0 ? _b : ""); }; fr.readAsDataURL(file); });
+}
+function readImageFile(file) {
+    if (!file || !file.type || !file.type.startsWith("image/") || file.type === "image/gif")
+        return readImageFileRaw(file);
+    return new Promise(resolve => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        const fallback = () => {
+            URL.revokeObjectURL(url);
+            readImageFileRaw(file).then(resolve);
+        };
+        img.onload = () => {
+            try {
+                const maxSide = 1280;
+                const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                const w = Math.max(1, Math.round(img.width * scale));
+                const h = Math.max(1, Math.round(img.height * scale));
+                const canvas = document.createElement("canvas");
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                if (!ctx)
+                    return fallback();
+                ctx.fillStyle = C.bg1;
+                ctx.fillRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+                URL.revokeObjectURL(url);
+                resolve(canvas.toDataURL("image/jpeg", 0.72));
+            }
+            catch {
+                fallback();
+            }
+        };
+        img.onerror = fallback;
+        img.src = url;
+    });
 }
 function getOccurrencesForMonth(appts, year, month) {
     const res = {};
@@ -175,6 +217,32 @@ function makeImageData(images) {
     const clean = (images || []).filter(Boolean);
     return { imageUrls: clean, imageUrl: clean[0] || "" };
 }
+function stripHeavyDetails(item) {
+    return { ...item, description: "", imageUrl: "", imageUrls: [] };
+}
+function compactDoneTaskRecord(task) {
+    if (!task || !task.done || (!task.description && getImages(task).length === 0))
+        return task;
+    return stripHeavyDetails(task);
+}
+function compactPastApptRecord(appt) {
+    const isPastOneTime = appt && appt.date && appt.date < todayStr() && ((appt.recurrence || "none") === "none");
+    if (!isPastOneTime || (!appt.description && getImages(appt).length === 0))
+        return appt;
+    return stripHeavyDetails(appt);
+}
+function compactStoredRecords(list, compactOne) {
+    if (!Array.isArray(list))
+        return list;
+    let changed = false;
+    const next = list.map(item => {
+        const compacted = compactOne(item);
+        if (compacted !== item)
+            changed = true;
+        return compacted;
+    });
+    return changed ? next : list;
+}
 function ImageUploadBtn({ value, onChange }) {
     const ref = useRef(null);
     return (React.createElement("div", { style: { marginBottom: 10 } },
@@ -219,22 +287,24 @@ function openPlannerImage(url) {
         window.dispatchEvent(new CustomEvent("planner-lightbox", { detail: url }));
 }
 
-function EventViewPanel({ a, onBack, onEdit }) {
+function EventViewPanel({ a, onBack, onEdit, onExport }) {
     if (!a)
         return React.createElement("div", null);
     const d = new Date(a.date + "T12:00:00");
     return React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, borderLeft: `3px solid ${a.color}`, marginTop: 10, marginBottom: 12, boxShadow: `0 0 18px ${a.color}22` } },
-        React.createElement("button", { onClick: onBack, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 12, padding: 0 } }, "\u2190 BACK"),
+        React.createElement("button", { onClick: onBack, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 12, padding: 0 } }, "← BACK"),
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
             React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
                 React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
-                (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
+                (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` – ${a.endTime}` : "")),
             React.createElement("button", { onClick: () => onEdit(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
+        onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
         getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
         React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
 }
-function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtask, onAddSubtask }) {
+
+function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtask, onAddSubtask, onExport }) {
     var _a, _b;
     const [expanded, setExpanded] = useState(false);
     const [newSub, setNewSub] = useState("");
@@ -257,7 +327,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
                     cat && React.createElement("span", { style: { fontSize: 9, fontWeight: 700, color: cat.color, background: cat.color + "18", padding: "1px 6px", borderRadius: 10, letterSpacing: 1 } }, cat.name),
                     task.dueDate && !task.done && React.createElement("span", { style: { fontSize: 9, color: isOverdue ? C.red : isToday ? C.green : C.muted, letterSpacing: 1 } },
                         "\uD83D\uDCC5 ",
-                        task.dueDate),
+                        formatBrDate(task.dueDate)),
                     ((_b = task.recurrence) !== null && _b !== void 0 ? _b : "none") !== "none" && !task.done && React.createElement("span", { style: { fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 1 } }, recurLabel[task.recurrence]),
                     subs.length > 0 && React.createElement("span", { style: { fontSize: 9, color: subDone === subs.length ? C.green : C.muted, letterSpacing: 1 } },
                         "\u2611 ",
@@ -266,6 +336,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
                         subs.length),
                     hasExtra && React.createElement("span", { style: { fontSize: 9, color: C.dim } }, expanded ? "▲" : "▼"))),
             React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
+                onExport && React.createElement("button", { onClick: () => onExport(task), title: "Send to Apple Reminders", style: { background: C.bg3, border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.green, fontWeight: 900, fontSize: 12 } }, "↗"),
                 React.createElement("button", { onClick: () => onEdit(task), style: { background: C.bg3, border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11 } }, "\u270E"),
                 React.createElement("button", { onClick: () => onDelete(task.id), style: { background: "#FF44441A", border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 13 } }, "\u00D7"))),
         expanded && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
@@ -284,7 +355,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
                         setNewSub("");
                     } }, style: { padding: "6px 10px", borderRadius: 8, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit" } }, "+"))))));
 }
-function ApptCard({ appt, onDelete, onEdit }) {
+function ApptCard({ appt, onDelete, onEdit, onExport }) {
     const [expanded, setExpanded] = useState(false);
     const d = new Date(appt.date + "T12:00:00");
     const apptImages = getImages(appt);
@@ -302,6 +373,7 @@ function ApptCard({ appt, onDelete, onEdit }) {
                     appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 1 } }, recurLabel[appt.recurrence]),
                     hasExtra && React.createElement("span", { style: { fontSize: 9, color: C.dim } }, expanded ? "▲ less" : "▼ more"))),
             React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
+                onExport && React.createElement("button", { onClick: () => onExport(appt), title: "Send to Apple Calendar", style: { background: C.bg3, border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.green, fontWeight: 900, fontSize: 12 } }, "↗"),
                 React.createElement("button", { onClick: () => onEdit(appt), style: { background: C.bg3, border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11 } }, "\u270E"),
                 React.createElement("button", { onClick: () => onDelete(appt.id), style: { background: "#FF44441A", border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 13 } }, "\u00D7"))),
         expanded && hasExtra && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
@@ -309,7 +381,7 @@ function ApptCard({ appt, onDelete, onEdit }) {
             apptImages.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: appt.description ? 8 : 0 } }, apptImages.map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 8, objectFit: "cover", display: "block", cursor: "zoom-in" } })))))));
 }
 
-function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, onRealEdit }) {
+function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, onRealEdit, onExport }) {
     var _a;
     const sorted = [...appts].sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
     const startHour = 5;
@@ -326,7 +398,7 @@ function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, on
             React.createElement("div", { style: { fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 1 } }, sorted.length, " EVENT", sorted.length === 1 ? "" : "S")),
         noTime.length > 0 && React.createElement("div", { style: { marginBottom: 10 } },
             React.createElement("div", { style: { fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 2, marginBottom: 6 } }, "NO TIME"),
-            noTime.map(a => React.createElement(React.Fragment, { key: a.id }, React.createElement(ApptCard, { appt: a, onDelete: onDelete, onEdit: onEdit }), selectedApptId === a.id && React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit })))),
+            noTime.map(a => React.createElement(React.Fragment, { key: a.id }, React.createElement(ApptCard, { appt: a, onDelete: onDelete, onEdit: onEdit, onExport: onExport }), selectedApptId === a.id && React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit, onExport: onExport })))),
         timed.length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, noTime.length ? "" : "No timed events.")
             : React.createElement("div", { style: { position: "relative", minHeight: timelineHeight, borderLeft: `1px solid ${C.border}`, marginLeft: 50, paddingBottom: 20 } },
                 Array.from({ length: endHour - startHour + 1 }).map((_, i) => {
@@ -347,7 +419,7 @@ function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, on
                             React.createElement("div", { style: { fontSize: 10, color: a.color, marginTop: 3, fontWeight: 700, letterSpacing: 0.5 } }, a.time, a.endTime ? ` \u2013 ${a.endTime}` : ""),
                             a.description && height > 64 && React.createElement("div", { style: { fontSize: 10, color: C.muted, marginTop: 5, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, a.description)),
                         selectedApptId === a.id && React.createElement("div", { style: { position: "absolute", top: top + height + 8, left: 0, right: 0, zIndex: 30 } },
-                            React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit })));
+                            React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit, onExport: onExport })));
                 }))));
 }
 
@@ -402,6 +474,7 @@ function App() {
     const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
     const [rawTasks, setTasks] = useLocalState("adhd3_tasks", []);
     const tasks = rawTasks.map(t => ({ dueDate: "", recurrence: "none", subtasks: [], imageUrls: [], ...t, imageUrls: getImages(t) }));
+    useEffect(() => { setTasks(p => compactStoredRecords(p, compactDoneTaskRecord)); }, [rawTasks]);
     const [categories, setCategories] = useLocalState("adhd3_cats", DEFAULT_CATEGORIES);
     const [taskCatFilter, setTaskCatFilter] = useState("all");
     const [taskViewFilter, setTaskViewFilter] = useState("all");
@@ -414,6 +487,7 @@ function App() {
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
     const appts = rawAppts.map(a => ({ endTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) }));
+    useEffect(() => { setAppts(p => compactStoredRecords(p, compactPastApptRecord)); }, [rawAppts]);
     const [calView, setCalView] = useState("grid");
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -482,7 +556,8 @@ function App() {
             if (!t.done && recurrence !== "none" && t.dueDate) {
                 return { ...t, dueDate: nextDueDate(t.dueDate, recurrence), done: false };
             }
-            return { ...t, done: !t.done };
+            const next = { ...t, done: !t.done };
+            return next.done ? compactDoneTaskRecord(next) : next;
         }));
     }
     function deleteTask(id) { setTasks((p) => p.filter(t => t.id !== id)); }
@@ -547,6 +622,92 @@ function App() {
     function deleteAppt(id) { setAppts((p) => p.filter(a => a.id !== id)); }
     function toggleColorFilter(c) { setApptColorFilter(prev => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; }); }
     const filteredAppts = apptColorFilter.size === 0 ? appts : appts.filter(a => apptColorFilter.has(a.color));
+
+    function plannerId(type, id) {
+        return "planner-" + type + "-" + id;
+    }
+    function plannerTaskPayload(t) {
+        const cat = categories.find(c => c.id === t.categoryId);
+        const notes = [
+            t.description || "",
+            cat ? "Category: " + cat.name : "",
+            t.priority ? "Priority: " + String(t.priority).toUpperCase() : "",
+            "Planner ID: " + plannerId("task", t.id)
+        ].filter(Boolean).join("\n\n");
+        return {
+            type: "task",
+            plannerId: plannerId("task", t.id),
+            title: t.text || "Untitled task",
+            notes,
+            dueDate: t.dueDate || "",
+            priority: t.priority || "medium",
+            completed: !!t.done
+        };
+    }
+    function plannerEventPayload(a) {
+        const notes = [
+            a.description || "",
+            a.recurrence && a.recurrence !== "none" ? "Recurrence: " + a.recurrence : "",
+            "Planner ID: " + plannerId("event", a.id)
+        ].filter(Boolean).join("\n\n");
+        return {
+            type: "event",
+            plannerId: plannerId("event", a.id),
+            title: a.title || "Untitled event",
+            notes,
+            date: a.date || "",
+            startTime: a.time || "",
+            endTime: a.endTime || "",
+            recurrence: a.recurrence || "none"
+        };
+    }
+    async function runPlannerShortcut(items) {
+        const cleanItems = (Array.isArray(items) ? items : [items]).filter(Boolean);
+        if (!cleanItems.length) {
+            alert("Nothing to export.");
+            return;
+        }
+        const payload = JSON.stringify({
+            source: "ADHD Planner",
+            exportVersion: 1,
+            exportedAt: new Date().toISOString(),
+            items: cleanItems
+        });
+        const name = encodeURIComponent("Planner Import");
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(payload);
+                window.location.href = "shortcuts://run-shortcut?name=" + name + "&input=clipboard";
+                return;
+            }
+        }
+        catch (err) {
+            console.warn("[Planner] Clipboard export failed, falling back to URL text.", err);
+        }
+        if (payload.length > 6500) {
+            alert("This bulk export is too large for URL export. Try exporting fewer items, or allow clipboard access and try again.");
+            return;
+        }
+        window.location.href = "shortcuts://run-shortcut?name=" + name + "&input=text&text=" + encodeURIComponent(payload);
+    }
+    function exportTaskToApple(t) {
+        runPlannerShortcut(plannerTaskPayload(t));
+    }
+    function exportEventToApple(a) {
+        runPlannerShortcut(plannerEventPayload(a));
+    }
+    function bulkExportTasksToApple() {
+        runPlannerShortcut(tasks.filter(t => !t.done).map(plannerTaskPayload));
+    }
+    function bulkExportEventsToApple() {
+        runPlannerShortcut(appts.filter(a => a.date && (a.date >= todayStr() || ((a.recurrence || "none") !== "none"))).map(plannerEventPayload));
+    }
+    function bulkExportPlannerToApple() {
+        const openTasks = tasks.filter(t => !t.done).map(plannerTaskPayload);
+        const upcomingEvents = appts.filter(a => a.date && (a.date >= todayStr() || ((a.recurrence || "none") !== "none"))).map(plannerEventPayload);
+        runPlannerShortcut([...openTasks, ...upcomingEvents]);
+    }
+
     function openAddNote() { setNoteDraft(emptyNote()); setEditingNoteId(null); setSelectedNoteId(null); setNoteView("edit"); }
     function openEditNote(n) {
         setNoteDraft({ title: n.title, type: n.type, content: n.content, topics: n.topics.length ? n.topics : [""], folderId: n.folderId, imageUrl: getImages(n)[0] || "", imageUrls: getImages(n) });
@@ -591,7 +752,7 @@ function App() {
         const data = {
             version: 1,
             exportedAt: new Date().toISOString(),
-            motivation, tasks, categories, appts, notes, folders, reviews
+            motivation, focusColor, tasks, categories, appts, notes, folders, reviews
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -607,6 +768,8 @@ function App() {
             const data = JSON.parse(text);
             if (data.motivation)
                 setMotivation(data.motivation);
+            if (data.focusColor)
+                setFocusColor(data.focusColor);
             if (Array.isArray(data.tasks))
                 setTasks(data.tasks);
             if (Array.isArray(data.categories))
@@ -707,10 +870,10 @@ function App() {
                 React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO RESULTS"))),
             searchResults.tasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u22A1", label: "TASKS", color: C.accent }),
-                searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask })))),
+                searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple })))),
             searchResults.appts.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "APPOINTMENTS", color: C.green }),
-                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt })))),
+                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple })))),
             searchResults.notes.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u2261", label: "NOTES", color: C.amber }),
                 searchResults.notes.map(n => {
@@ -730,10 +893,10 @@ function App() {
                     React.createElement(CatPill, { label: `${todayAppts.length} EVENTS`, active: true, color: todayAppts.length ? C.green : C.dim, onClick: () => setTab("calendar") }),
                     React.createElement(CatPill, { label: `${tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr()).length} OVERDUE`, active: true, color: tasks.some(t => !t.done && t.dueDate && t.dueDate < todayStr()) ? C.red : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("overdue"); } }))),
             React.createElement(SectionHeader, { icon: "\u22A1", label: "TODAY'S TASKS", color: C.accent }),
-            todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask }))
+            todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No open tasks."),
             React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "TODAY'S EVENTS", color: C.green }),
-            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt }))
+            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No events today."),
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}` } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.green, marginBottom: 10 } }, "// BACKUP"),
@@ -742,7 +905,11 @@ function App() {
                         e.target.value = ""; } }),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                     React.createElement("button", { onClick: exportBackup, style: { flex: 1, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "EXPORT"),
-                    React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "IMPORT"))))),
+                    React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "IMPORT")),
+                React.createElement("button", { onClick: bulkExportPlannerToApple, style: { width: "100%", marginTop: 10, padding: 11, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "SYNC TASKS + EVENTS TO APPLE"),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8 } },
+                    React.createElement("button", { onClick: bulkExportTasksToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "TASKS"),
+                    React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EVENTS"))))),
         !searchOpen && tab === "tasks" && (React.createElement("div", null,
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
                 React.createElement(CatPill, { label: "ALL", active: taskCatFilter === "all", color: C.accent, onClick: () => setTaskCatFilter("all") }),
@@ -767,7 +934,7 @@ function App() {
                     React.createElement("button", { onClick: addCategory, style: { padding: "7px 10px", borderRadius: 8, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "+")))),
             overdueTasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u26A0", label: "OVERDUE", color: C.red }),
-                overdueTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask })))),
+                overdueTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple })))),
             ["high", "medium", "low"].map(pri => {
                 const list = relevantTasks.filter(t => t.priority === pri && !t.done && !(t.dueDate && t.dueDate < todayStr()));
                 if (!list.length)
@@ -775,11 +942,11 @@ function App() {
                 const p = PRIORITY[pri];
                 return (React.createElement("div", { key: pri, style: { marginBottom: 16 } },
                     React.createElement(SectionHeader, { icon: p.icon, label: `${p.label} PRIORITY`, color: p.color }),
-                    list.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask }))));
+                    list.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple }))));
             }),
             relevantTasks.filter(t => t.done).length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u2713", label: "DONE", color: C.dim }),
-                relevantTasks.filter(t => t.done).map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask })))),
+                relevantTasks.filter(t => t.done).map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple })))),
             relevantTasks.filter(t => !t.done).length === 0 && !overdueTasks.length && (React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                 React.createElement("div", { style: { fontSize: 36, marginBottom: 12 } }, "[ ]"),
                 React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2 } }, "NO TASKS YET"))),
@@ -843,10 +1010,10 @@ function App() {
                         " ",
                         selDay),
                     ((_a = apptsByDay[selDay]) !== null && _a !== void 0 ? _a : []).length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No events scheduled.")
-                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openViewAppt }))),
+                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple }))),
                 !selDay && (React.createElement("div", { style: { marginTop: 18 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
-                    appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt })),
+                    appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple })),
                     appts.length === 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No appointments added."))))),
             calView === "week" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 } },
@@ -873,8 +1040,8 @@ function App() {
                         " ",
                         selWeekDay.toLocaleDateString([], { month: "short", day: "numeric" })),
                     ((_c = weekApptsByDay[selWeekDay.toDateString()]) !== null && _c !== void 0 ? _c : []).length === 0
-                        ? React.createElement(DayTimeline, { date: selWeekDay, appts: [], onDelete: deleteAppt, onEdit: openViewAppt, selectedApptId: selectedApptId, onBack: () => setSelectedApptId(null), onRealEdit: openEditAppt })
-                        : React.createElement(DayTimeline, { date: selWeekDay, appts: (_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : [], onDelete: deleteAppt, onEdit: openViewAppt, selectedApptId: selectedApptId, onBack: () => setSelectedApptId(null), onRealEdit: openEditAppt }))),
+                        ? React.createElement(DayTimeline, { date: selWeekDay, appts: [], onDelete: deleteAppt, onEdit: openViewAppt, selectedApptId: selectedApptId, onBack: () => setSelectedApptId(null), onRealEdit: openEditAppt, onExport: exportEventToApple })
+                        : React.createElement(DayTimeline, { date: selWeekDay, appts: (_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : [], onDelete: deleteAppt, onEdit: openViewAppt, selectedApptId: selectedApptId, onBack: () => setSelectedApptId(null), onRealEdit: openEditAppt, onExport: exportEventToApple }))),
                 !selWeekDay && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0", letterSpacing: 1 } }, "Tap a day to see its events."))),
             calView === "list" && (React.createElement("div", null,
                 React.createElement("div", { style: { marginBottom: 14 } },
@@ -887,11 +1054,27 @@ function App() {
                             return React.createElement("button", { key: c, onClick: () => toggleColorFilter(c), style: { width: 28, height: 28, borderRadius: 8, background: c, border: "none", cursor: "pointer", outline: active ? `2px solid white` : "2px solid transparent", outlineOffset: 2, opacity: active ? 1 : 0.3 } });
                         }),
                         apptColorFilter.size > 0 && React.createElement("button", { onClick: () => setApptColorFilter(new Set()), style: { padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "CLEAR"))),
-                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt })),
+                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple })),
                 filteredAppts.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                     React.createElement("div", { style: { fontSize: 28, marginBottom: 10 } }, "[ ]"),
                     React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO APPOINTMENTS")))),
-            showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
+            selectedApptId ? (() => {
+                const a = appts.find(x => x.id === selectedApptId);
+                if (!a)
+                    return React.createElement("div", null);
+                const d = new Date(a.date + "T12:00:00");
+                return React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, borderLeft: `3px solid ${a.color}`, marginTop: 14 } },
+                    React.createElement("button", { onClick: () => setSelectedApptId(null), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 12, padding: 0 } }, "\u2190 BACK"),
+                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
+                        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                            React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
+                            React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
+                            (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
+                        React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
+                    onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
+        getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
+                    React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
+            })() : showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
                 React.createElement("input", { autoFocus: true, placeholder: "Event title", value: apptDraft.title, onChange: e => setApptDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("textarea", { placeholder: "Description (optional)", value: apptDraft.description, onChange: e => setApptDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
                 React.createElement(MultiImageUploadBtn, { value: apptDraft.imageUrls || getImages(apptDraft), onChange: urls => setApptDraft(d => ({ ...d, ...makeImageData(urls) })) }),
