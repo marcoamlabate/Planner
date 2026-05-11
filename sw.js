@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v16-direct-no-loader';
+const CACHE_NAME = 'adhd-planner-v17-save-sync-direct';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

@@ -539,13 +539,20 @@ function App() {
     }
     function saveTask() {
         if (!taskDraft.text.trim())
-            return;
+            return null;
+        const saved = editingTaskId !== null ? { id: editingTaskId, done: false, ...taskDraft } : { id: Date.now(), done: false, ...taskDraft };
         if (editingTaskId !== null)
             setTasks((p) => p.map(t => t.id === editingTaskId ? { ...t, ...taskDraft } : t));
         else
-            setTasks((p) => [...p, { id: Date.now(), done: false, ...taskDraft }]);
+            setTasks((p) => [...p, saved]);
         setShowTaskForm(false);
         setEditingTaskId(null);
+        return saved;
+    }
+    function saveTaskAndExport() {
+        const saved = saveTask();
+        if (saved)
+            exportTaskToApple(saved);
     }
     function toggleTask(id) {
         setTasks((p) => p.map(t => {
@@ -610,14 +617,21 @@ function App() {
     }
     function saveAppt() {
         if (!apptDraft.title.trim() || !apptDraft.date)
-            return;
+            return null;
+        const saved = editingApptId !== null ? { id: editingApptId, ...apptDraft } : { id: Date.now(), ...apptDraft };
         if (editingApptId !== null)
             setAppts((p) => p.map(a => a.id === editingApptId ? { ...a, ...apptDraft } : a));
         else
-            setAppts((p) => [...p, { id: Date.now(), ...apptDraft }]);
+            setAppts((p) => [...p, saved]);
         setShowApptForm(false);
         setSelectedApptId(null);
         setEditingApptId(null);
+        return saved;
+    }
+    function saveApptAndExport() {
+        const saved = saveAppt();
+        if (saved)
+            exportEventToApple(saved);
     }
     function deleteAppt(id) { setAppts((p) => p.filter(a => a.id !== id)); }
     function toggleColorFilter(c) { setApptColorFilter(prev => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; }); }
@@ -975,7 +989,8 @@ function App() {
                 React.createElement("button", { onClick: addSubtaskToDraft, style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, "+ ADD SUBTASK"),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                     React.createElement("button", { onClick: () => { setShowTaskForm(false); setEditingTaskId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                    React.createElement("button", { onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingTaskId ? "SAVE CHANGES" : "+ ADD TASK")))) : null)),
+                    React.createElement("button", { onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingTaskId ? "SAVE CHANGES" : "+ ADD TASK")),
+                React.createElement("button", { onClick: saveTaskAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingTaskId ? "SAVE + SEND TO APPLE" : "+ ADD TASK + SEND TO APPLE"))) : null)),
         !searchOpen && tab === "calendar" && (React.createElement("div", null,
             React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 14, background: C.bg2, borderRadius: 10, padding: 3, border: `1px solid ${C.border}` } }, [["grid", "⊞ MONTH"], ["week", "≡ WEEK"], ["list", "↓ LIST"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setCalView(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 1, fontFamily: "inherit", background: calView === key ? C.accent : "transparent", color: calView === key ? C.bg0 : C.muted, boxShadow: calView === key ? `0 0 10px ${C.accent}55` : "none" } }, label)))),
             calView === "grid" && (React.createElement(React.Fragment, null,
@@ -1092,7 +1107,8 @@ function App() {
                 React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setApptDraft(d => ({ ...d, color: c })), style: { width: 26, height: 26, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: apptDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: apptDraft.color === c ? 1 : 0.4 } }))),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                     React.createElement("button", { onClick: () => { setShowApptForm(false); setEditingApptId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                    React.createElement("button", { onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")))) : null)),
+                    React.createElement("button", { onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")),
+                React.createElement("button", { onClick: saveApptAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingApptId ? "SAVE + SEND TO APPLE" : "+ ADD EVENT + SEND TO APPLE"))) : null)),
         !searchOpen && tab === "notes" && (React.createElement("div", null, noteView === "view" ? (() => {
             const n = notes.find(x => x.id === selectedNoteId);
             const folder = n ? folders.find(f => f.id === n.folderId) : null;
