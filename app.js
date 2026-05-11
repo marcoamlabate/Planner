@@ -642,10 +642,13 @@ function App() {
     }
     function plannerTaskPayload(t) {
         const cat = categories.find(c => c.id === t.categoryId);
+        const dueDate = t.dueDate || "";
+        const dueDateTime = dueDate ? `${dueDate}T09:00:00` : "";
         const notes = [
             t.description || "",
             cat ? "Category: " + cat.name : "",
             t.priority ? "Priority: " + String(t.priority).toUpperCase() : "",
+            dueDate ? "Planner Due Date: " + dueDate : "",
             "Planner ID: " + plannerId("task", t.id)
         ].filter(Boolean).join("\n\n");
         return {
@@ -653,15 +656,24 @@ function App() {
             plannerId: plannerId("task", t.id),
             title: t.text || "Untitled task",
             notes,
-            dueDate: t.dueDate || "",
+            dueDate,
+            dueDateTime,
             priority: t.priority || "medium",
             completed: !!t.done
         };
     }
     function plannerEventPayload(a) {
+        const startTime = a.time || "";
+        const endTime = a.endTime || "";
+        const fallbackEnd = startTime ? minutesToTime((timeToMinutes(startTime) ?? 0) + 60) : "";
+        const cleanEndTime = endTime || fallbackEnd;
+        const startDateTime = a.date && startTime ? `${a.date}T${startTime}:00` : "";
+        const endDateTime = a.date && cleanEndTime ? `${a.date}T${cleanEndTime}:00` : "";
         const notes = [
             a.description || "",
             a.recurrence && a.recurrence !== "none" ? "Recurrence: " + a.recurrence : "",
+            startDateTime ? "Planner Start: " + startDateTime : "",
+            endDateTime ? "Planner End: " + endDateTime : "",
             "Planner ID: " + plannerId("event", a.id)
         ].filter(Boolean).join("\n\n");
         return {
@@ -670,8 +682,10 @@ function App() {
             title: a.title || "Untitled event",
             notes,
             date: a.date || "",
-            startTime: a.time || "",
-            endTime: a.endTime || "",
+            startTime,
+            endTime: cleanEndTime,
+            startDateTime,
+            endDateTime,
             recurrence: a.recurrence || "none"
         };
     }
