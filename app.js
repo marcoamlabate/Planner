@@ -19,7 +19,6 @@ const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
     const m = (i % 4) * 15;
     return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
 });
-const EVENT_ALERT_DAY_OPTIONS = [["none", "NO ALERT"], ["same-day", "SAME DAY"], ["day-before", "DAY BEFORE"]];
 function useLocalState(key, init) {
     const [val, setVal] = useState(() => {
         try {
@@ -523,11 +522,12 @@ function App() {
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [showCatMgr, setShowCatMgr] = useState(false);
     const [catDraft, setCatDraft] = useState({ name: "", color: ACCENT_COLORS[4] });
-    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertTime: "", recurrence: "none", subtasks: [] }); };
+    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertDate: "", alertTime: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
+    const [taskAlertOpen, setTaskAlertOpen] = useState(false);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
     const appts = rawAppts.map(a => {
-        const normalized = { endDate: "", endTime: "", allDay: false, alertDateMode: "none", alertTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
+        const normalized = { endDate: "", endTime: "", allDay: false, alertDate: "", alertTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
         return { ...normalized, allDay: !!normalized.allDay || (!normalized.time && !normalized.endTime) };
     });
     useEffect(() => { setAppts(p => compactStoredRecords(p, compactPastApptRecord)); }, [rawAppts]);
@@ -541,8 +541,9 @@ function App() {
     const [selectedApptId, setSelectedApptId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [editingApptId, setEditingApptId] = useState(null);
-    const emptyAppt = () => ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertDateMode: "none", alertTime: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
+    const emptyAppt = () => ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertDate: "", alertTime: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
     const [apptDraft, setApptDraft] = useState(emptyAppt);
+    const [apptAlertOpen, setApptAlertOpen] = useState(false);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
     const [folders, setFolders] = useLocalState("adhd3_folders", DEFAULT_FOLDERS);
     const [selFolderId, setSelFolderId] = useState(null);
@@ -573,19 +574,21 @@ function App() {
             notes: notes.filter(n => { var _a, _b; return n.title.toLowerCase().includes(q) || ((_a = n.content) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(q)) || ((_b = n.topics) === null || _b === void 0 ? void 0 : _b.some(t => t.toLowerCase().includes(q))); }),
         };
     }, [searchQuery, rawTasks, rawAppts, notes]);
-    function openAddTask() { setTaskDraft(emptyTask()); setEditingTaskId(null); setShowTaskForm(true); }
+    function openAddTask() { setTaskDraft(emptyTask()); setTaskAlertOpen(false); setEditingTaskId(null); setShowTaskForm(true); }
     function openEditTask(t) {
         var _a, _b, _c, _d, _e;
-        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: getImages(t)[0] || "", imageUrls: getImages(t), dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", dueTime: (_d = t.dueTime) !== null && _d !== void 0 ? _d : "", alertTime: (_e = t.alertTime) !== null && _e !== void 0 ? _e : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
+        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: getImages(t)[0] || "", imageUrls: getImages(t), dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", dueTime: (_d = t.dueTime) !== null && _d !== void 0 ? _d : "", alertDate: t.alertDate || t.dueDate || "", alertTime: (_e = t.alertTime) !== null && _e !== void 0 ? _e : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
+        setTaskAlertOpen(!!(t.alertDate || t.alertTime));
         setEditingTaskId(t.id);
         setShowTaskForm(true);
     }
     function saveTask() {
         if (!taskDraft.text.trim())
             return null;
-        const saved = editingTaskId !== null ? { id: editingTaskId, done: false, ...taskDraft } : { id: Date.now(), done: false, ...taskDraft };
+        const normalizedTaskDraft = { ...taskDraft, alertDate: taskDraft.alertDate || (taskDraft.alertTime ? taskDraft.dueDate : "") };
+        const saved = editingTaskId !== null ? { id: editingTaskId, done: false, ...normalizedTaskDraft } : { id: Date.now(), done: false, ...normalizedTaskDraft };
         if (editingTaskId !== null)
-            setTasks((p) => p.map(t => t.id === editingTaskId ? { ...t, ...taskDraft } : t));
+            setTasks((p) => p.map(t => t.id === editingTaskId ? { ...t, ...normalizedTaskDraft } : t));
         else
             setTasks((p) => [...p, saved]);
         setShowTaskForm(false);
@@ -645,13 +648,15 @@ function App() {
             draft.endDate = dateToLocalStr(selected);
         }
         setApptDraft(draft);
+        setApptAlertOpen(false);
         setSelectedApptId(null);
         setEditingApptId(null);
         setShowApptForm(true);
     }
     function openEditAppt(a) {
         var _a, _b, _c, _d, _e;
-        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertDateMode: (_b = a.alertDateMode) !== null && _b !== void 0 ? _b : "none", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertDate: a.alertDate || "", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setApptAlertOpen(!!(a.alertDate || a.alertTime));
         setSelectedApptId(null);
         setEditingApptId(a.id);
         setShowApptForm(true);
@@ -663,7 +668,7 @@ function App() {
     function saveAppt() {
         if (!apptDraft.title.trim() || !apptDraft.date)
             return null;
-        const normalizedApptDraft = { ...apptDraft, endDate: apptDraft.endDate || apptDraft.date, allDay: !!apptDraft.allDay || (!apptDraft.time && !apptDraft.endTime) };
+        const normalizedApptDraft = { ...apptDraft, endDate: apptDraft.endDate || apptDraft.date, alertDate: apptDraft.alertDate || (apptDraft.alertTime ? apptDraft.date : ""), allDay: !!apptDraft.allDay || (!apptDraft.time && !apptDraft.endTime) };
         if (normalizedApptDraft.allDay) {
             normalizedApptDraft.time = "";
             normalizedApptDraft.endTime = "";
@@ -694,10 +699,11 @@ function App() {
         const cat = categories.find(c => c.id === t.categoryId);
         const dueDate = t.dueDate || "";
         const dueTime = t.dueTime || "";
+        const alertDate = t.alertDate || "";
         const alertTime = t.alertTime || "";
         const dueDateTime = dueDate && dueTime ? `${dueDate}T${dueTime}:00` : "";
         const dueDateText = dueDate ? (dueTime ? shortcutFriendlyDateTime(dueDate, dueTime) : shortcutFriendlyDate(dueDate)) : "";
-        const alertDateText = dueDate && alertTime ? shortcutFriendlyDateTime(dueDate, alertTime) : "";
+        const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
         const priorityLabel = t.priority ? String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "Medium";
         const notes = [
             cat ? "Category: " + cat.name : "",
@@ -712,6 +718,7 @@ function App() {
             dueTime,
             dueDateTime,
             dueDateText,
+            alertDate,
             alertTime,
             alertDateText,
             priority: priorityLabel,
@@ -730,10 +737,8 @@ function App() {
         const endDateTime = endDate && cleanEndTime ? `${endDate}T${cleanEndTime}:00` : "";
         const startDateText = startDate ? (startTime ? shortcutFriendlyDateTime(startDate, startTime) : shortcutFriendlyDate(startDate)) : "";
         const endDateText = endDate ? (cleanEndTime ? shortcutFriendlyDateTime(endDate, cleanEndTime) : (endDate !== startDate ? shortcutFriendlyDate(endDate) : "")) : "";
-        const alertDateMode = a.alertDateMode || "none";
+        const alertDate = a.alertDate || "";
         const alertTime = a.alertTime || "";
-        const alertDateBase = startDate || endDate;
-        const alertDate = alertDateMode === "same-day" ? alertDateBase : alertDateMode === "day-before" ? shiftDateStr(alertDateBase, -1) : "";
         const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
         const notes = [
             a.description || "",
@@ -760,7 +765,7 @@ function App() {
             endDateTime,
             startDateText,
             endDateText,
-            alertDateMode,
+            alertDate,
             alertTime,
             alertDateText,
             recurrence: a.recurrence || "none"
@@ -1062,11 +1067,11 @@ function App() {
                     React.createElement("input", { type: "date", value: taskDraft.dueDate, onChange: e => setTaskDraft(d => ({ ...d, dueDate: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12 } }),
                     React.createElement("input", { type: "time", value: taskDraft.dueTime || "", onChange: e => setTaskDraft(d => ({ ...d, dueTime: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12, padding: "10px 6px", textAlign: "center" } }),
                     React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, dueDate: "", dueTime: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "No date")),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "auto minmax(0,1fr)", gap: 8, alignItems: "center", marginBottom: 10 } },
-                    React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted } }, "ALERT"),
-                    React.createElement("select", { value: taskDraft.alertTime || "", onChange: e => setTaskDraft(d => ({ ...d, alertTime: e.target.value })), disabled: !taskDraft.dueDate, style: { ...inp, minWidth: 0, padding: "10px 8px", opacity: taskDraft.dueDate ? 1 : 0.45 } },
-                        React.createElement("option", { value: "" }, "NO ALERT"),
-                        TIME_OPTIONS.map(t => React.createElement("option", { key: t, value: t }, t)))),
+                React.createElement("button", { onClick: () => setTaskAlertOpen(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: taskDraft.alertDate || taskDraft.alertTime ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: taskAlertOpen ? 8 : 10, textAlign: "left" } }, taskDraft.alertDate || taskDraft.alertTime ? `ALERT: ${taskDraft.alertDate || "choose date"} ${taskDraft.alertTime || ""}` : "ALERT  +"),
+                taskAlertOpen && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", gap: 8, alignItems: "center", marginBottom: 10 } },
+                    React.createElement("input", { type: "date", value: taskDraft.alertDate || "", onChange: e => setTaskDraft(d => ({ ...d, alertDate: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12 } }),
+                    React.createElement("input", { type: "time", value: taskDraft.alertTime || "", onChange: e => setTaskDraft(d => ({ ...d, alertTime: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12, padding: "10px 6px", textAlign: "center" } }),
+                    React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, alertDate: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "Clear")),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
                 React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setTaskDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: taskDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: taskDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
                 React.createElement(MultiImageUploadBtn, { value: taskDraft.imageUrls || getImages(taskDraft), onChange: urls => setTaskDraft(d => ({ ...d, ...makeImageData(urls) })) }),
@@ -1205,13 +1210,11 @@ function App() {
                     React.createElement("div", { style: { minWidth: 0, width: "100%" } },
                         React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "END TIME"),
                         React.createElement("input", { type: "time", value: apptDraft.endTime, disabled: apptDraft.allDay, onChange: e => setApptDraft(d => ({ ...d, endTime: e.target.value, allDay: !d.time && !e.target.value })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } }))),
-                React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "ALERT"),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 10 } },
-                    React.createElement("select", { value: apptDraft.alertDateMode || "none", onChange: e => setApptDraft(d => ({ ...d, alertDateMode: e.target.value })), disabled: !apptDraft.date, style: { ...inp, minWidth: 0, padding: "10px 8px", opacity: apptDraft.date ? 1 : 0.45 } },
-                        EVENT_ALERT_DAY_OPTIONS.map(([value, label]) => React.createElement("option", { key: value, value: value }, label))),
-                    React.createElement("select", { value: apptDraft.alertTime || "", onChange: e => setApptDraft(d => ({ ...d, alertTime: e.target.value })), disabled: !apptDraft.date || (apptDraft.alertDateMode || "none") === "none", style: { ...inp, minWidth: 0, padding: "10px 8px", opacity: apptDraft.date && (apptDraft.alertDateMode || "none") !== "none" ? 1 : 0.45 } },
-                        React.createElement("option", { value: "" }, "TIME"),
-                        TIME_OPTIONS.map(t => React.createElement("option", { key: t, value: t }, t)))),
+                React.createElement("button", { onClick: () => setApptAlertOpen(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: apptDraft.alertDate || apptDraft.alertTime ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: apptAlertOpen ? 8 : 10, textAlign: "left" } }, apptDraft.alertDate || apptDraft.alertTime ? `ALERT: ${apptDraft.alertDate || "choose date"} ${apptDraft.alertTime || ""}` : "ALERT  +"),
+                apptAlertOpen && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", gap: 8, alignItems: "center", marginBottom: 10 } },
+                    React.createElement("input", { type: "date", value: apptDraft.alertDate || "", onChange: e => setApptDraft(d => ({ ...d, alertDate: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12 } }),
+                    React.createElement("input", { type: "time", value: apptDraft.alertTime || "", onChange: e => setApptDraft(d => ({ ...d, alertTime: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12, padding: "10px 6px", textAlign: "center" } }),
+                    React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, alertDate: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "Clear")),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
                 React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setApptDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: apptDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: apptDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
                 React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setApptDraft(d => ({ ...d, color: c })), style: { width: 26, height: 26, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: apptDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: apptDraft.color === c ? 1 : 0.4 } }))),
