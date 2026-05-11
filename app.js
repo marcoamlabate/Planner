@@ -68,6 +68,17 @@ function shortcutFriendlyDateTime(dateStr, timeStr) {
     const minutes = String(d.getMinutes()).padStart(2, "0");
     return `${day} ${month} ${year} at ${hours}:${minutes}`;
 }
+function shortcutFriendlyDate(dateStr) {
+    if (!dateStr)
+        return "";
+    const d = new Date(`${dateStr}T12:00:00`);
+    if (Number.isNaN(d.getTime()))
+        return "";
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = d.toLocaleString("en-US", { month: "short" });
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+}
 function shiftDateStr(dateStr, days) {
     if (!dateStr)
         return "";
@@ -515,7 +526,10 @@ function App() {
     const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertTime: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
-    const appts = rawAppts.map(a => ({ endTime: "", alertDateMode: "none", alertTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) }));
+    const appts = rawAppts.map(a => {
+        const normalized = { endDate: "", endTime: "", allDay: false, alertDateMode: "none", alertTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
+        return { ...normalized, allDay: !!normalized.allDay || (!normalized.time && !normalized.endTime) };
+    });
     useEffect(() => { setAppts(p => compactStoredRecords(p, compactPastApptRecord)); }, [rawAppts]);
     const [calView, setCalView] = useState("grid");
     const [calYear, setCalYear] = useState(today.getFullYear());
@@ -527,7 +541,7 @@ function App() {
     const [selectedApptId, setSelectedApptId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [editingApptId, setEditingApptId] = useState(null);
-    const emptyAppt = () => ({ title: "", date: "", time: "", endTime: "", alertDateMode: "none", alertTime: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
+    const emptyAppt = () => ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertDateMode: "none", alertTime: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
     const [apptDraft, setApptDraft] = useState(emptyAppt);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
     const [folders, setFolders] = useLocalState("adhd3_folders", DEFAULT_FOLDERS);
@@ -626,16 +640,18 @@ function App() {
             selected = selWeekDay;
         else if (selDay)
             selected = new Date(calYear, calMonth, selDay);
-        if (selected)
+        if (selected) {
             draft.date = dateToLocalStr(selected);
+            draft.endDate = dateToLocalStr(selected);
+        }
         setApptDraft(draft);
         setSelectedApptId(null);
         setEditingApptId(null);
         setShowApptForm(true);
     }
     function openEditAppt(a) {
-        var _a, _b, _c;
-        setApptDraft({ title: a.title, date: a.date, time: a.time, endTime: a.endTime || "", alertDateMode: (_b = a.alertDateMode) !== null && _b !== void 0 ? _b : "none", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        var _a, _b, _c, _d, _e;
+        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertDateMode: (_b = a.alertDateMode) !== null && _b !== void 0 ? _b : "none", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
         setSelectedApptId(null);
         setEditingApptId(a.id);
         setShowApptForm(true);
@@ -647,9 +663,14 @@ function App() {
     function saveAppt() {
         if (!apptDraft.title.trim() || !apptDraft.date)
             return null;
-        const saved = editingApptId !== null ? { id: editingApptId, ...apptDraft } : { id: Date.now(), ...apptDraft };
+        const normalizedApptDraft = { ...apptDraft, endDate: apptDraft.endDate || apptDraft.date, allDay: !!apptDraft.allDay || (!apptDraft.time && !apptDraft.endTime) };
+        if (normalizedApptDraft.allDay) {
+            normalizedApptDraft.time = "";
+            normalizedApptDraft.endTime = "";
+        }
+        const saved = editingApptId !== null ? { id: editingApptId, ...normalizedApptDraft } : { id: Date.now(), ...normalizedApptDraft };
         if (editingApptId !== null)
-            setAppts((p) => p.map(a => a.id === editingApptId ? { ...a, ...apptDraft } : a));
+            setAppts((p) => p.map(a => a.id === editingApptId ? { ...a, ...normalizedApptDraft } : a));
         else
             setAppts((p) => [...p, saved]);
         setShowApptForm(false);
@@ -673,10 +694,9 @@ function App() {
         const cat = categories.find(c => c.id === t.categoryId);
         const dueDate = t.dueDate || "";
         const dueTime = t.dueTime || "";
-        const cleanDueTime = dueTime || "09:00";
         const alertTime = t.alertTime || "";
-        const dueDateTime = dueDate ? `${dueDate}T${cleanDueTime}:00` : "";
-        const dueDateText = dueDate ? shortcutFriendlyDateTime(dueDate, cleanDueTime) : "";
+        const dueDateTime = dueDate && dueTime ? `${dueDate}T${dueTime}:00` : "";
+        const dueDateText = dueDate ? (dueTime ? shortcutFriendlyDateTime(dueDate, dueTime) : shortcutFriendlyDate(dueDate)) : "";
         const alertDateText = dueDate && alertTime ? shortcutFriendlyDateTime(dueDate, alertTime) : "";
         const priorityLabel = t.priority ? String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "Medium";
         const notes = [
@@ -699,21 +719,26 @@ function App() {
         };
     }
     function plannerEventPayload(a) {
-        const startTime = a.time || "";
-        const endTime = a.endTime || "";
+        const startDate = a.date || "";
+        const endDate = a.endDate || a.date || "";
+        const allDay = !!a.allDay || (!a.time && !a.endTime);
+        const startTime = allDay ? "" : (a.time || "");
+        const rawEndTime = allDay ? "" : (a.endTime || "");
         const fallbackEnd = startTime ? minutesToTime((timeToMinutes(startTime) ?? 0) + 60) : "";
-        const cleanEndTime = endTime || fallbackEnd;
-        const startDateTime = a.date && startTime ? `${a.date}T${startTime}:00` : "";
-        const endDateTime = a.date && cleanEndTime ? `${a.date}T${cleanEndTime}:00` : "";
-        const startDateText = a.date && startTime ? shortcutFriendlyDateTime(a.date, startTime) : "";
-        const endDateText = a.date && cleanEndTime ? shortcutFriendlyDateTime(a.date, cleanEndTime) : "";
+        const cleanEndTime = rawEndTime || fallbackEnd;
+        const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00` : "";
+        const endDateTime = endDate && cleanEndTime ? `${endDate}T${cleanEndTime}:00` : "";
+        const startDateText = startDate ? (startTime ? shortcutFriendlyDateTime(startDate, startTime) : shortcutFriendlyDate(startDate)) : "";
+        const endDateText = endDate ? (cleanEndTime ? shortcutFriendlyDateTime(endDate, cleanEndTime) : (endDate !== startDate ? shortcutFriendlyDate(endDate) : "")) : "";
         const alertDateMode = a.alertDateMode || "none";
         const alertTime = a.alertTime || "";
-        const alertDate = alertDateMode === "same-day" ? (a.date || "") : alertDateMode === "day-before" ? shiftDateStr(a.date, -1) : "";
+        const alertDateBase = startDate || endDate;
+        const alertDate = alertDateMode === "same-day" ? alertDateBase : alertDateMode === "day-before" ? shiftDateStr(alertDateBase, -1) : "";
         const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
         const notes = [
             a.description || "",
             a.recurrence && a.recurrence !== "none" ? "Recurrence: " + a.recurrence : "",
+            allDay ? "All-Day Event: yes" : "",
             startDateTime ? "Planner Start: " + startDateTime : "",
             endDateTime ? "Planner End: " + endDateTime : "",
             startDateText ? "Planner Start Text: " + startDateText : "",
@@ -726,7 +751,9 @@ function App() {
             plannerId: plannerId("event", a.id),
             title: a.title || "Untitled event",
             notes,
-            date: a.date || "",
+            date: startDate,
+            endDate,
+            allDay: allDay ? "yes" : "",
             startTime,
             endTime: cleanEndTime,
             startDateTime,
@@ -1163,15 +1190,21 @@ function App() {
                 React.createElement("input", { autoFocus: true, placeholder: "Event title", value: apptDraft.title, onChange: e => setApptDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("textarea", { placeholder: "Description (optional)", value: apptDraft.description, onChange: e => setApptDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
                 React.createElement(MultiImageUploadBtn, { value: apptDraft.imageUrls || getImages(apptDraft), onChange: urls => setApptDraft(d => ({ ...d, ...makeImageData(urls) })) }),
-                React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
-                    React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value })), style: { ...inp, flex: 1 } })),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8, width: "100%", overflow: "hidden" } },
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },
+                    React.createElement("div", { style: { minWidth: 0 } },
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "STARTS"),
+                        React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value, endDate: d.endDate || e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } })),
+                    React.createElement("div", { style: { minWidth: 0 } },
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "ENDS"),
+                        React.createElement("input", { type: "date", value: apptDraft.endDate || apptDraft.date || "", onChange: e => setApptDraft(d => ({ ...d, endDate: e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } }))),
+                React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, allDay: !d.allDay, time: !d.allDay ? "" : d.time, endTime: !d.allDay ? "" : d.endTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: apptDraft.allDay ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.allDay ? C.accent + "22" : C.bg3, color: apptDraft.allDay ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, apptDraft.allDay ? "ALL-DAY: YES" : "ALL-DAY: NO"),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8, width: "100%", overflow: "hidden", opacity: apptDraft.allDay ? 0.35 : 1 } },
                     React.createElement("div", { style: { minWidth: 0, width: "100%" } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "START"),
-                        React.createElement("input", { type: "time", value: apptDraft.time, onChange: e => setApptDraft(d => ({ ...d, time: e.target.value })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } })),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "START TIME"),
+                        React.createElement("input", { type: "time", value: apptDraft.time, disabled: apptDraft.allDay, onChange: e => setApptDraft(d => ({ ...d, time: e.target.value, allDay: !e.target.value && !d.endTime })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } })),
                     React.createElement("div", { style: { minWidth: 0, width: "100%" } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "END"),
-                        React.createElement("input", { type: "time", value: apptDraft.endTime, onChange: e => setApptDraft(d => ({ ...d, endTime: e.target.value })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } }))),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "END TIME"),
+                        React.createElement("input", { type: "time", value: apptDraft.endTime, disabled: apptDraft.allDay, onChange: e => setApptDraft(d => ({ ...d, endTime: e.target.value, allDay: !d.time && !e.target.value })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } }))),
                 React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "ALERT"),
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 10 } },
                     React.createElement("select", { value: apptDraft.alertDateMode || "none", onChange: e => setApptDraft(d => ({ ...d, alertDateMode: e.target.value })), disabled: !apptDraft.date, style: { ...inp, minWidth: 0, padding: "10px 8px", opacity: apptDraft.date ? 1 : 0.45 } },
