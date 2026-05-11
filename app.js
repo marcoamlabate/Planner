@@ -659,13 +659,10 @@ function App() {
         const dueDate = t.dueDate || "";
         const dueDateTime = dueDate ? `${dueDate}T09:00:00` : "";
         const dueDateText = dueDate ? shortcutFriendlyDateTime(dueDate, "09:00") : "";
+        const priorityLabel = t.priority ? String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "Medium";
         const notes = [
-            t.description || "",
             cat ? "Category: " + cat.name : "",
-            t.priority ? "Priority: " + String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "",
-            dueDate ? "Planner Due Date: " + dueDate : "",
-            dueDateText ? "Planner Due Date Text: " + dueDateText : "",
-            "Planner ID: " + plannerId("task", t.id)
+            dueDate ? "Planner Due Date: " + dueDate : ""
         ].filter(Boolean).join("\n\n");
         return {
             type: "task",
@@ -675,7 +672,7 @@ function App() {
             dueDate,
             dueDateTime,
             dueDateText,
-            priority: t.priority || "medium",
+            priority: priorityLabel,
             completed: !!t.done
         };
     }
