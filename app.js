@@ -779,27 +779,21 @@ function App() {
             recurrence: a.recurrence || "none"
         };
     }
+    let plannerShortcutLaunchLock = 0;
     function openShortcutUrl(url) {
-        try {
-            const a = document.createElement("a");
-            a.href = url;
-            a.style.display = "none";
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                try { window.location.assign(url); }
-                catch { window.location.href = url; }
-                setTimeout(() => { try { a.remove(); } catch { } }, 500);
-            }, 80);
-        }
-        catch {
-            window.location.href = url;
-        }
+        window.location.href = url;
     }
     async function runPlannerShortcut(items) {
+        const now = Date.now();
+        if (now - plannerShortcutLaunchLock < 2500) {
+            console.warn("[Planner] Ignored duplicate Shortcut launch.");
+            return;
+        }
+        plannerShortcutLaunchLock = now;
         const cleanItems = (Array.isArray(items) ? items : [items]).filter(Boolean);
         if (!cleanItems.length) {
             alert("Nothing to export.");
+            plannerShortcutLaunchLock = 0;
             return;
         }
         let payload = "";
@@ -814,6 +808,7 @@ function App() {
         catch (err) {
             console.error("[Planner] Export JSON failed.", err);
             alert("Export failed while creating JSON.");
+            plannerShortcutLaunchLock = 0;
             return;
         }
         const name = encodeURIComponent("Planner Import");
@@ -830,6 +825,7 @@ function App() {
         }
         if (payload.length > 6500) {
             alert("This export is too large for URL export. Try exporting fewer items, or allow clipboard access and try again.");
+            plannerShortcutLaunchLock = 0;
             return;
         }
         openShortcutUrl("shortcuts://run-shortcut?name=" + name + "&input=text&text=" + encodeURIComponent(payload));
