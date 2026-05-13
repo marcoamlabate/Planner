@@ -771,23 +771,49 @@ function App() {
             recurrence: a.recurrence || "none"
         };
     }
+    function openShortcutUrl(url) {
+        try {
+            const a = document.createElement("a");
+            a.href = url;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                try { window.location.assign(url); }
+                catch { window.location.href = url; }
+                setTimeout(() => { try { a.remove(); } catch { } }, 500);
+            }, 80);
+        }
+        catch {
+            window.location.href = url;
+        }
+    }
     async function runPlannerShortcut(items) {
         const cleanItems = (Array.isArray(items) ? items : [items]).filter(Boolean);
         if (!cleanItems.length) {
             alert("Nothing to export.");
             return;
         }
-        const payload = JSON.stringify({
-            source: "ADHD Planner",
-            exportVersion: 1,
-            exportedAt: new Date().toISOString(),
-            items: cleanItems
-        });
+        let payload = "";
+        try {
+            payload = JSON.stringify({
+                source: "ADHD Planner",
+                exportVersion: 1,
+                exportedAt: new Date().toISOString(),
+                items: cleanItems
+            });
+        }
+        catch (err) {
+            console.error("[Planner] Export JSON failed.", err);
+            alert("Export failed while creating JSON.");
+            return;
+        }
         const name = encodeURIComponent("Planner Import");
+        const clipboardUrl = "shortcuts://run-shortcut?name=" + name + "&input=clipboard";
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(payload);
-                window.location.href = "shortcuts://run-shortcut?name=" + name + "&input=clipboard";
+                openShortcutUrl(clipboardUrl);
                 return;
             }
         }
@@ -795,10 +821,10 @@ function App() {
             console.warn("[Planner] Clipboard export failed, falling back to URL text.", err);
         }
         if (payload.length > 6500) {
-            alert("This bulk export is too large for URL export. Try exporting fewer items, or allow clipboard access and try again.");
+            alert("This export is too large for URL export. Try exporting fewer items, or allow clipboard access and try again.");
             return;
         }
-        window.location.href = "shortcuts://run-shortcut?name=" + name + "&input=text&text=" + encodeURIComponent(payload);
+        openShortcutUrl("shortcuts://run-shortcut?name=" + name + "&input=text&text=" + encodeURIComponent(payload));
     }
     function exportTaskToApple(t) {
         runPlannerShortcut(plannerTaskPayload(t));
@@ -1091,8 +1117,8 @@ function App() {
                 React.createElement("button", { onClick: addSubtaskToDraft, style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, "+ ADD SUBTASK"),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                     React.createElement("button", { onClick: () => { setShowTaskForm(false); setEditingTaskId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                    React.createElement("button", { onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingTaskId ? "SAVE CHANGES" : "+ ADD TASK")),
-                React.createElement("button", { onClick: saveTaskAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingTaskId ? "SAVE + SEND TO APPLE" : "+ ADD TASK + SEND TO APPLE"))) : null)),
+                    React.createElement("button", { type: "button", onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingTaskId ? "SAVE CHANGES" : "+ ADD TASK")),
+                React.createElement("button", { type: "button", onClick: saveTaskAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingTaskId ? "SAVE + SEND TO APPLE" : "+ ADD TASK + SEND TO APPLE"))) : null)),
         !searchOpen && tab === "calendar" && (React.createElement("div", null,
             React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 14, background: C.bg2, borderRadius: 10, padding: 3, border: `1px solid ${C.border}` } }, [["grid", "⊞ MONTH"], ["week", "≡ WEEK"], ["list", "↓ LIST"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setCalView(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 1, fontFamily: "inherit", background: calView === key ? C.accent : "transparent", color: calView === key ? C.bg0 : C.muted, boxShadow: calView === key ? `0 0 10px ${C.accent}55` : "none" } }, label)))),
             calView === "grid" && (React.createElement(React.Fragment, null,
@@ -1220,8 +1246,8 @@ function App() {
                 React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setApptDraft(d => ({ ...d, color: c })), style: { width: 26, height: 26, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: apptDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: apptDraft.color === c ? 1 : 0.4 } }))),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                     React.createElement("button", { onClick: () => { setShowApptForm(false); setEditingApptId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                    React.createElement("button", { onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")),
-                React.createElement("button", { onClick: saveApptAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingApptId ? "SAVE + SEND TO APPLE" : "+ ADD EVENT + SEND TO APPLE"))) : null)),
+                    React.createElement("button", { type: "button", onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")),
+                React.createElement("button", { type: "button", onClick: saveApptAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingApptId ? "SAVE + SEND TO APPLE" : "+ ADD EVENT + SEND TO APPLE"))) : null)),
         !searchOpen && tab === "notes" && (React.createElement("div", null, noteView === "view" ? (() => {
             const n = notes.find(x => x.id === selectedNoteId);
             const folder = n ? folders.find(f => f.id === n.folderId) : null;
