@@ -338,7 +338,7 @@ function EventViewPanel({ a, onBack, onEdit, onExport }) {
                 React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
                 (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` – ${a.endTime}` : "")),
             React.createElement("button", { onClick: () => onEdit(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
-        React.createElement("button", { onClick: () => exportEventToApple(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
+        onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
                     getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
         React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
 }
@@ -527,7 +527,7 @@ function App() {
     const [taskAlertOpen, setTaskAlertOpen] = useState(false);
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
     const appts = rawAppts.map(a => {
-        const normalized = { endDate: "", endTime: "", allDay: false, alertDate: "", alertTime: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
+        const normalized = { endDate: "", endTime: "", allDay: false, alertDate: "", alertTime: "", locationText: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
         return { ...normalized, allDay: !!normalized.allDay || (!normalized.time && !normalized.endTime) };
     });
     useEffect(() => { setAppts(p => compactStoredRecords(p, compactPastApptRecord)); }, [rawAppts]);
@@ -541,7 +541,7 @@ function App() {
     const [selectedApptId, setSelectedApptId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [editingApptId, setEditingApptId] = useState(null);
-    const emptyAppt = () => ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertDate: "", alertTime: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
+    const emptyAppt = () => ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertDate: "", alertTime: "", locationText: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
     const [apptDraft, setApptDraft] = useState(emptyAppt);
     const [apptAlertOpen, setApptAlertOpen] = useState(false);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
@@ -655,7 +655,7 @@ function App() {
     }
     function openEditAppt(a) {
         var _a, _b, _c, _d, _e;
-        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertDate: a.alertDate || "", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertDate: a.alertDate || "", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", locationText: a.locationText || "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
         setApptAlertOpen(!!(a.alertDate || a.alertTime));
         setSelectedApptId(null);
         setEditingApptId(a.id);
@@ -705,10 +705,7 @@ function App() {
         const dueDateText = dueDate ? (dueTime ? shortcutFriendlyDateTime(dueDate, dueTime) : shortcutFriendlyDate(dueDate)) : "";
         const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
         const priorityLabel = t.priority ? String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "Medium";
-        const notes = [
-            cat ? "Category: " + cat.name : "",
-            dueDate ? "Planner Due Date: " + dueDate : ""
-        ].filter(Boolean).join("\n\n");
+        const notes = t.description || "";
         return {
             type: "task",
             plannerId: plannerId("task", t.id),
@@ -748,22 +745,13 @@ function App() {
         const alertDate = a.alertDate || "";
         const alertTime = a.alertTime || "";
         const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
-        const notes = [
-            a.description || "",
-            a.recurrence && a.recurrence !== "none" ? "Recurrence: " + a.recurrence : "",
-            allDay ? "All-Day Event: yes" : "",
-            startDateTime ? "Planner Start: " + startDateTime : "",
-            endDateTime ? "Planner End: " + endDateTime : "",
-            startDateText ? "Planner Start Text: " + startDateText : "",
-            endDateText ? "Planner End Text: " + endDateText : "",
-            alertDateText ? "Planner Alert Text: " + alertDateText : "",
-            "Planner ID: " + plannerId("event", a.id)
-        ].filter(Boolean).join("\n\n");
+        const notes = a.description || "";
         return {
             type: "event",
             plannerId: plannerId("event", a.id),
             title: a.title || "Untitled event",
             notes,
+            locationText: a.locationText || "",
             date: startDate,
             endDate,
             allDay: allDay ? "yes" : "",
@@ -1033,10 +1021,10 @@ function App() {
                     React.createElement(CatPill, { label: `${todayAppts.length} EVENTS`, active: true, color: todayAppts.length ? C.green : C.dim, onClick: () => setTab("calendar") }),
                     React.createElement(CatPill, { label: `${tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr()).length} OVERDUE`, active: true, color: tasks.some(t => !t.done && t.dueDate && t.dueDate < todayStr()) ? C.red : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("overdue"); } }))),
             React.createElement(SectionHeader, { icon: "\u22A1", label: "TODAY'S TASKS", color: C.accent }),
-            todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple }))
+            todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: task => { setTab("tasks"); openEditTask(task); }, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No open tasks."),
             React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "TODAY'S EVENTS", color: C.green }),
-            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple }))
+            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: appt => { setTab("calendar"); openEditAppt(appt); }, onExport: exportEventToApple }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No events today."),
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}` } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.green, marginBottom: 10 } }, "// BACKUP"),
@@ -1223,6 +1211,7 @@ function App() {
                     React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
             })() : showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
                 React.createElement("input", { autoFocus: true, placeholder: "Event title", value: apptDraft.title, onChange: e => setApptDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 8 } }),
+                React.createElement("input", { placeholder: "Location (optional)", value: apptDraft.locationText || "", onChange: e => setApptDraft(d => ({ ...d, locationText: e.target.value })), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("textarea", { placeholder: "Description (optional)", value: apptDraft.description, onChange: e => setApptDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
                 React.createElement(MultiImageUploadBtn, { value: apptDraft.imageUrls || getImages(apptDraft), onChange: urls => setApptDraft(d => ({ ...d, ...makeImageData(urls) })) }),
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v31-single-shortcut-launch';
+const CACHE_NAME = 'adhd-planner-v32-notes-location-today-fixes';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
