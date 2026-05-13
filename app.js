@@ -1001,7 +1001,7 @@ function App() {
                 searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple })))),
             searchResults.appts.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "APPOINTMENTS", color: C.green }),
-                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple })))),
+                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })))),
             searchResults.notes.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u2261", label: "NOTES", color: C.amber }),
                 searchResults.notes.map(n => {
@@ -1145,10 +1145,10 @@ function App() {
                         " ",
                         selDay),
                     ((_a = apptsByDay[selDay]) !== null && _a !== void 0 ? _a : []).length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No events scheduled.")
-                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple }))),
+                        : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openViewAppt, onRealEdit: openEditAppt, onExport: exportEventToApple }))),
                 !selDay && (React.createElement("div", { style: { marginTop: 18 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
-                    appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple })),
+                    appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })),
                     appts.length === 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No appointments added."))))),
             calView === "week" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 } },
@@ -1189,7 +1189,7 @@ function App() {
                             return React.createElement("button", { key: c, onClick: () => toggleColorFilter(c), style: { width: 28, height: 28, borderRadius: 8, background: c, border: "none", cursor: "pointer", outline: active ? `2px solid white` : "2px solid transparent", outlineOffset: 2, opacity: active ? 1 : 0.3 } });
                         }),
                         apptColorFilter.size > 0 && React.createElement("button", { onClick: () => setApptColorFilter(new Set()), style: { padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "CLEAR"))),
-                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openViewAppt, onExport: exportEventToApple })),
+                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })),
                 filteredAppts.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                     React.createElement("div", { style: { fontSize: 28, marginBottom: 10 } }, "[ ]"),
                     React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO APPOINTMENTS")))),
@@ -1206,7 +1206,7 @@ function App() {
                             React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
                             (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
                         React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
-                    onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
+                    React.createElement("button", { onClick: () => exportEventToApple(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
                     getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
                     React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
             })() : showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
