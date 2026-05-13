@@ -731,7 +731,15 @@ function App() {
         const allDay = !!a.allDay || (!a.time && !a.endTime);
         const startTime = allDay ? "" : (a.time || "");
         const rawEndTime = allDay ? "" : (a.endTime || "");
-        const fallbackEnd = startTime ? minutesToTime((timeToMinutes(startTime) ?? 0) + 60) : "";
+        const fallbackEnd = (!rawEndTime && startTime) ? (() => {
+            const startMinutes = timeToMinutes(startTime);
+            if (startMinutes === null)
+                return "";
+            const total = (startMinutes + 60) % (24 * 60);
+            const h = Math.floor(total / 60);
+            const m = total % 60;
+            return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+        })() : "";
         const cleanEndTime = rawEndTime || fallbackEnd;
         const startDateTime = startDate && startTime ? `${startDate}T${startTime}:00` : "";
         const endDateTime = endDate && cleanEndTime ? `${endDate}T${cleanEndTime}:00` : "";
