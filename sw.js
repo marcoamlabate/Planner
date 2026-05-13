@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v35-alert-enabled';
+const CACHE_NAME = 'adhd-planner-v36-task-categories';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

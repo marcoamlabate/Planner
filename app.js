@@ -240,9 +240,10 @@ const inp = {
     fontFamily: "'IBM Plex Mono', monospace", color: C.text, outline: "none", boxSizing: "border-box",
 };
 const DEFAULT_CATEGORIES = [
+    { id: "homework", name: "Homework", color: "#06B6D4" },
+    { id: "tests", name: "Tests", color: "#F5A623" },
     { id: "personal", name: "Personal", color: "#A78BFA" },
     { id: "work", name: "Work", color: "#F97316" },
-    { id: "college", name: "College", color: "#06B6D4" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
 
@@ -720,6 +721,8 @@ function App() {
             plannerId: plannerId("task", t.id),
             title: t.text || "Untitled task",
             notes,
+            categoryId: t.categoryId || "",
+            categoryText: cat && cat.name ? String(cat.name).charAt(0).toUpperCase() + String(cat.name).slice(1) : "",
             dueDate,
             dueTime,
             dueDateTime,
