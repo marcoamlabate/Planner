@@ -247,6 +247,24 @@ const DEFAULT_CATEGORIES = [
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
 
+function normalizeTaskCategoryId(id) {
+    return id === "college" ? "homework" : id;
+}
+function mergeTaskCategories(existing) {
+    const out = [...DEFAULT_CATEGORIES];
+    const seen = new Set(out.map(c => c.id));
+    const deprecated = new Set(["college"]);
+    if (Array.isArray(existing)) {
+        for (const c of existing) {
+            if (!c || !c.id || deprecated.has(c.id) || seen.has(c.id))
+                continue;
+            out.push(c);
+            seen.add(c.id);
+        }
+    }
+    return out;
+}
+
 function getImages(item) {
     const arr = Array.isArray(item && item.imageUrls) ? item.imageUrls.filter(Boolean) : [];
     if (item && item.imageUrl && !arr.includes(item.imageUrl))
@@ -513,9 +531,13 @@ function App() {
     const [reviewDraft, setReviewDraft] = useState({ done: "", move: "", tomorrow: "" });
     const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
     const [rawTasks, setTasks] = useLocalState("adhd3_tasks", []);
-    const tasks = rawTasks.map(t => ({ dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [], imageUrls: [], ...t, imageUrls: getImages(t) }));
+    const tasks = rawTasks.map(t => {
+        const normalized = { dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [], imageUrls: [], ...t, imageUrls: getImages(t) };
+        return { ...normalized, categoryId: normalizeTaskCategoryId(normalized.categoryId) };
+    });
     useEffect(() => { setTasks(p => compactStoredRecords(p, compactDoneTaskRecord)); }, [rawTasks]);
     const [categories, setCategories] = useLocalState("adhd3_cats", DEFAULT_CATEGORIES);
+    useEffect(() => { setCategories(p => mergeTaskCategories(p)); }, []);
     const [taskCatFilter, setTaskCatFilter] = useState("all");
     const [taskViewFilter, setTaskViewFilter] = useState("all");
     const [taskSort, setTaskSort] = useState("priority");
@@ -721,7 +743,7 @@ function App() {
             plannerId: plannerId("task", t.id),
             title: t.text || "Untitled task",
             notes,
-            categoryId: t.categoryId || "",
+            categoryId: normalizeTaskCategoryId(t.categoryId) || "",
             categoryText: cat && cat.name ? String(cat.name).charAt(0).toUpperCase() + String(cat.name).slice(1) : "",
             dueDate,
             dueTime,
@@ -914,9 +936,9 @@ function App() {
             if (data.focusColor)
                 setFocusColor(data.focusColor);
             if (Array.isArray(data.tasks))
-                setTasks(data.tasks);
+                setTasks(data.tasks.map(t => ({ ...t, categoryId: normalizeTaskCategoryId(t.categoryId) })));
             if (Array.isArray(data.categories))
-                setCategories(data.categories);
+                setCategories(mergeTaskCategories(data.categories));
             if (Array.isArray(data.appts))
                 setAppts(data.appts);
             if (Array.isArray(data.notes))
