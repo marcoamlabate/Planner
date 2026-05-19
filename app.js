@@ -252,6 +252,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
+const APP_VERSION = "v40";
 
 function capitalizeLabel(s) {
     return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "";
@@ -1167,7 +1168,8 @@ function App() {
                 React.createElement("button", { onClick: bulkExportPlannerToApple, style: { width: "100%", marginTop: 10, padding: 11, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "SYNC TASKS + EVENTS TO APPLE"),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8 } },
                     React.createElement("button", { onClick: bulkExportTasksToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "TASKS"),
-                    React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EVENTS"))))),
+                    React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EVENTS"))),
+            React.createElement("div", { style: { textAlign: "center", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.dim, fontWeight: 800, letterSpacing: 2 } }, "APP VERSION ", APP_VERSION))),
         !searchOpen && tab === "tasks" && (React.createElement("div", null,
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
                 React.createElement(CatPill, { label: "ALL", active: taskCatFilter === "all", color: C.accent, onClick: () => setTaskCatFilter("all") }),

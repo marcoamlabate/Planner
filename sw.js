@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v39-hide-past-calendar-list';
+const CACHE_NAME = 'adhd-planner-v40-version-display';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
