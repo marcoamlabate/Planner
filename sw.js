@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v37-category-import-merge';
+const CACHE_NAME = 'adhd-planner-v38-tasks-event-categories';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

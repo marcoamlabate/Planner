@@ -245,7 +245,69 @@ const DEFAULT_CATEGORIES = [
     { id: "personal", name: "Personal", color: "#A78BFA" },
     { id: "work", name: "Work", color: "#F97316" },
 ];
+const DEFAULT_EVENT_CATEGORIES = [
+    { id: "personal", name: "Personal", color: "#A78BFA" },
+    { id: "work", name: "Work", color: "#F97316" },
+    { id: "homework", name: "Homework", color: "#06B6D4" },
+    { id: "tests", name: "Tests", color: "#F5A623" },
+];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
+
+function capitalizeLabel(s) {
+    return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "";
+}
+function getTaskDueDateTime(task) {
+    if (!task || !task.dueDate)
+        return null;
+    const t = task.dueTime || "12:00";
+    const d = new Date(`${task.dueDate}T${t}:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+function taskDateProximityKey(task) {
+    const d = getTaskDueDateTime(task);
+    if (!d)
+        return Number.MAX_SAFE_INTEGER;
+    const now = new Date();
+    return Math.abs(d.getTime() - now.getTime());
+}
+function taskDateColor(task) {
+    if (!task || !task.dueDate)
+        return C.muted;
+    const today = new Date(todayStr() + "T12:00:00");
+    const due = new Date(task.dueDate + "T12:00:00");
+    const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
+    if (diff <= 0)
+        return C.red;
+    if (diff <= 2)
+        return C.amber;
+    return C.green;
+}
+function taskTimeColor(task) {
+    if (!task || !task.dueDate || !task.dueTime)
+        return C.muted;
+    const d = new Date(`${task.dueDate}T${task.dueTime}:00`);
+    if (Number.isNaN(d.getTime()))
+        return C.muted;
+    const diff = (d.getTime() - Date.now()) / 60000;
+    if (diff <= 60)
+        return C.red;
+    if (diff <= 180)
+        return C.amber;
+    return C.green;
+}
+function mergeEventCategories(existing) {
+    const out = [...DEFAULT_EVENT_CATEGORIES];
+    const seen = new Set(out.map(c => c.id));
+    if (Array.isArray(existing)) {
+        for (const c of existing) {
+            if (!c || !c.id || seen.has(c.id))
+                continue;
+            out.push(c);
+            seen.add(c.id);
+        }
+    }
+    return out;
+}
 
 function normalizeTaskCategoryId(id) {
     return id === "college" ? "homework" : id;
@@ -355,6 +417,7 @@ function EventViewPanel({ a, onBack, onEdit, onExport }) {
             React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
                 React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
+                a.categoryText && React.createElement("div", { style: { fontSize: 11, color: a.color, letterSpacing: 1, lineHeight: 1.6, fontWeight: 800 } }, "Category: ", a.categoryText),
                 (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` – ${a.endTime}` : "")),
             React.createElement("button", { onClick: () => onEdit(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
         onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
@@ -383,9 +446,12 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
                 React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" } },
                     !task.done && React.createElement("span", { style: { fontSize: 9, fontWeight: 700, color: isOverdue ? C.red : isToday ? C.green : p.color, letterSpacing: 2 } }, isOverdue ? "⚠ OVERDUE" : isToday ? "● TODAY" : `${p.icon} ${p.label}`),
                     cat && React.createElement("span", { style: { fontSize: 9, fontWeight: 700, color: cat.color, background: cat.color + "18", padding: "1px 6px", borderRadius: 10, letterSpacing: 1 } }, cat.name),
-                    task.dueDate && !task.done && React.createElement("span", { style: { fontSize: 9, color: isOverdue ? C.red : isToday ? C.green : C.muted, letterSpacing: 1 } },
+                    task.dueDate && !task.done && React.createElement("span", { style: { fontSize: 9, color: taskDateColor(task), letterSpacing: 1, fontWeight: 800 } },
                         "\uD83D\uDCC5 ",
                         formatBrDate(task.dueDate)),
+                    task.dueTime && !task.done && React.createElement("span", { style: { fontSize: 9, color: taskTimeColor(task), letterSpacing: 1, fontWeight: 800 } },
+                        "\u23F0 ",
+                        task.dueTime),
                     ((_b = task.recurrence) !== null && _b !== void 0 ? _b : "none") !== "none" && !task.done && React.createElement("span", { style: { fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 1 } }, recurLabel[task.recurrence]),
                     subs.length > 0 && React.createElement("span", { style: { fontSize: 9, color: subDone === subs.length ? C.green : C.muted, letterSpacing: 1 } },
                         "\u2611 ",
@@ -413,7 +479,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
                         setNewSub("");
                     } }, style: { padding: "6px 10px", borderRadius: 8, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit" } }, "+"))))));
 }
-function ApptCard({ appt, onDelete, onEdit, onExport }) {
+function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
     const [expanded, setExpanded] = useState(false);
     const d = new Date(appt.date + "T12:00:00");
     const apptImages = getImages(appt);
@@ -421,13 +487,14 @@ function ApptCard({ appt, onDelete, onEdit, onExport }) {
     const recurLabel = { daily: "↺ DAILY", weekly: "↺ WEEKLY", monthly: "↺ MONTHLY" };
     return (React.createElement("div", { style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${appt.color}` } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
-            React.createElement("div", { style: { background: appt.color + "18", borderRadius: 8, padding: "6px 8px", textAlign: "center", minWidth: 38, flexShrink: 0, cursor: hasExtra ? "pointer" : "default" }, onClick: () => hasExtra && setExpanded(!expanded) },
+            React.createElement("div", { style: { background: appt.color + "18", borderRadius: 8, padding: "6px 8px", textAlign: "center", minWidth: 38, flexShrink: 0, cursor: onView ? "pointer" : hasExtra ? "pointer" : "default" }, onClick: () => onView ? onView(appt) : hasExtra && setExpanded(!expanded) },
                 React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: appt.color, letterSpacing: 1 } }, MONTHS[d.getMonth()]),
                 React.createElement("div", { style: { fontSize: 20, fontWeight: 900, color: appt.color, lineHeight: 1.1 } }, d.getDate())),
-            React.createElement("div", { style: { flex: 1, cursor: hasExtra ? "pointer" : "default" }, onClick: () => hasExtra && setExpanded(!expanded) },
+            React.createElement("div", { style: { flex: 1, cursor: onView ? "pointer" : hasExtra ? "pointer" : "default" }, onClick: () => onView ? onView(appt) : hasExtra && setExpanded(!expanded) },
                 React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, appt.title),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap", alignItems: "center" } },
                     appt.time && React.createElement("span", { style: { fontSize: 10, color: C.muted, letterSpacing: 1 } }, appt.time + (appt.endTime ? `–${appt.endTime}` : "")),
+                    appt.categoryText && React.createElement("span", { style: { fontSize: 9, color: appt.color, background: appt.color + "18", fontWeight: 800, letterSpacing: 1, borderRadius: 10, padding: "1px 6px" } }, appt.categoryText),
                     appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 1 } }, recurLabel[appt.recurrence]),
                     hasExtra && React.createElement("span", { style: { fontSize: 9, color: C.dim } }, expanded ? "▲ less" : "▼ more"))),
             React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
@@ -548,10 +615,15 @@ function App() {
     const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [taskAlertOpen, setTaskAlertOpen] = useState(false);
+    const [eventCategories, setEventCategories] = useLocalState("adhd3_event_cats", DEFAULT_EVENT_CATEGORIES);
+    useEffect(() => { setEventCategories(p => mergeEventCategories(p)); }, []);
+    const [showEventCatMgr, setShowEventCatMgr] = useState(false);
+    const [eventCatDraft, setEventCatDraft] = useState({ name: "", color: ACCENT_COLORS[0] });
     const [rawAppts, setAppts] = useLocalState("adhd3_appts", []);
     const appts = rawAppts.map(a => {
-        const normalized = { endDate: "", endTime: "", allDay: false, alertEnabled: false, alertDate: "", alertTime: "", locationText: "", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
-        return { ...normalized, allDay: !!normalized.allDay || (!normalized.time && !normalized.endTime) };
+        const normalized = { endDate: "", endTime: "", allDay: false, alertEnabled: false, alertDate: "", alertTime: "", locationText: "", categoryId: "personal", recurrence: "none", imageUrls: [], ...a, imageUrls: getImages(a) };
+        const eventCat = eventCategories.find(c => c.id === normalized.categoryId) || eventCategories[0] || DEFAULT_EVENT_CATEGORIES[0];
+        return { ...normalized, categoryId: eventCat.id, categoryText: capitalizeLabel(eventCat.name), color: eventCat.color || normalized.color || C.accent, allDay: !!normalized.allDay || (!normalized.time && !normalized.endTime) };
     });
     useEffect(() => { setAppts(p => compactStoredRecords(p, compactPastApptRecord)); }, [rawAppts]);
     const [calView, setCalView] = useState("grid");
@@ -564,7 +636,7 @@ function App() {
     const [selectedApptId, setSelectedApptId] = useState(null);
     const [lightboxImage, setLightboxImage] = useState(null);
     const [editingApptId, setEditingApptId] = useState(null);
-    const emptyAppt = () => ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertEnabled: false, alertDate: "", alertTime: "", locationText: "", color: C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" });
+    const emptyAppt = () => { const cat = eventCategories[0] || DEFAULT_EVENT_CATEGORIES[0]; return ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertEnabled: false, alertDate: "", alertTime: "", locationText: "", categoryId: cat.id, categoryText: capitalizeLabel(cat.name), color: cat.color || C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" }); };
     const [apptDraft, setApptDraft] = useState(emptyAppt);
     const [apptAlertOpen, setApptAlertOpen] = useState(false);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
@@ -660,6 +732,18 @@ function App() {
         setCategories(p => p.filter(c => c.id !== id));
         setTasks((p) => p.map(t => { var _a, _b; return t.categoryId === id ? { ...t, categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal" } : t; }));
     }
+    function addEventCategory() {
+        if (!eventCatDraft.name.trim())
+            return;
+        const id = eventCatDraft.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || Date.now().toString();
+        setEventCategories(p => mergeEventCategories([...p, { id, name: eventCatDraft.name.trim(), color: eventCatDraft.color }]));
+        setEventCatDraft({ name: "", color: ACCENT_COLORS[0] });
+    }
+    function deleteEventCategory(id) {
+        setEventCategories(p => p.filter(c => c.id !== id));
+        const fallback = eventCategories.find(c => c.id !== id) || DEFAULT_EVENT_CATEGORIES[0];
+        setAppts(p => p.map(a => a.categoryId === id ? { ...a, categoryId: fallback.id, categoryText: capitalizeLabel(fallback.name), color: fallback.color } : a));
+    }
     function quickAddTask(text, categoryId) {
         setTasks((p) => [...p, { id: Date.now(), text, description: "", priority: "medium", done: false, categoryId, imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [] }]);
     }
@@ -682,7 +766,7 @@ function App() {
     }
     function openEditAppt(a) {
         var _a, _b, _c, _d, _e;
-        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertEnabled: !!a.alertEnabled, alertDate: a.alertDate || "", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", locationText: a.locationText || "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
+        setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertEnabled: !!a.alertEnabled, alertDate: a.alertDate || "", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", locationText: a.locationText || "", categoryId: a.categoryId || "personal", categoryText: a.categoryText || "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
         setApptAlertOpen(!!(a.alertEnabled || a.alertDate || a.alertTime));
         setSelectedApptId(null);
         setEditingApptId(a.id);
@@ -695,7 +779,8 @@ function App() {
     function saveAppt() {
         if (!apptDraft.title.trim() || !apptDraft.date)
             return null;
-        const normalizedApptDraft = { ...apptDraft, endDate: apptDraft.endDate || apptDraft.date, alertEnabled: !!apptDraft.alertEnabled, allDay: !!apptDraft.allDay || (!apptDraft.time && !apptDraft.endTime) };
+        const eventCat = eventCategories.find(c => c.id === apptDraft.categoryId) || eventCategories[0] || DEFAULT_EVENT_CATEGORIES[0];
+        const normalizedApptDraft = { ...apptDraft, endDate: apptDraft.endDate || apptDraft.date, categoryId: eventCat.id, categoryText: capitalizeLabel(eventCat.name), color: eventCat.color || apptDraft.color || C.accent, alertEnabled: !!apptDraft.alertEnabled, allDay: !!apptDraft.allDay || (!apptDraft.time && !apptDraft.endTime) };
         if (!normalizedApptDraft.alertEnabled) {
             normalizedApptDraft.alertDate = "";
             normalizedApptDraft.alertTime = "";
@@ -782,12 +867,15 @@ function App() {
         const alertTime = alertEnabled ? (a.alertTime || "") : "";
         const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
         const notes = a.description || "";
+        const eventCat = eventCategories.find(c => c.id === a.categoryId);
         return {
             type: "event",
             plannerId: plannerId("event", a.id),
             title: a.title || "Untitled event",
             notes,
             locationText: a.locationText || "",
+            categoryId: a.categoryId || "",
+            categoryText: eventCat && eventCat.name ? capitalizeLabel(eventCat.name) : (a.categoryText || ""),
             date: startDate,
             endDate,
             allDay: allDay ? "yes" : "",
@@ -917,7 +1005,7 @@ function App() {
         const data = {
             version: 1,
             exportedAt: new Date().toISOString(),
-            motivation, focusColor, tasks, categories, appts, notes, folders, reviews
+            motivation, focusColor, tasks, categories, eventCategories, appts, notes, folders, reviews
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -939,6 +1027,8 @@ function App() {
                 setTasks(data.tasks.map(t => ({ ...t, categoryId: normalizeTaskCategoryId(t.categoryId) })));
             if (Array.isArray(data.categories))
                 setCategories(mergeTaskCategories(data.categories));
+            if (Array.isArray(data.eventCategories))
+                setEventCategories(mergeEventCategories(data.eventCategories));
             if (Array.isArray(data.appts))
                 setAppts(data.appts);
             if (Array.isArray(data.notes))
@@ -1011,7 +1101,10 @@ function App() {
         if (taskSort === "category")
             return (((_a = categories.find(c => c.id === a.categoryId)) === null || _a === void 0 ? void 0 : _a.name) || "").localeCompare(((_b = categories.find(c => c.id === b.categoryId)) === null || _b === void 0 ? void 0 : _b.name) || "");
         const rank = { high: 0, medium: 1, low: 2 };
-        return ((_c = rank[a.priority]) !== null && _c !== void 0 ? _c : 9) - ((_d = rank[b.priority]) !== null && _d !== void 0 ? _d : 9);
+        const pr = (((_c = rank[a.priority]) !== null && _c !== void 0 ? _c : 9) - ((_d = rank[b.priority]) !== null && _d !== void 0 ? _d : 9));
+        if (pr !== 0)
+            return pr;
+        return taskDateProximityKey(a) - taskDateProximityKey(b);
     });
     const todayTasks = [...tasks].filter(t => !t.done).sort((a, b) => {
         const ad = a.dueDate || "9999-99-99";
@@ -1228,7 +1321,7 @@ function App() {
                             return React.createElement("button", { key: c, onClick: () => toggleColorFilter(c), style: { width: 28, height: 28, borderRadius: 8, background: c, border: "none", cursor: "pointer", outline: active ? `2px solid white` : "2px solid transparent", outlineOffset: 2, opacity: active ? 1 : 0.3 } });
                         }),
                         apptColorFilter.size > 0 && React.createElement("button", { onClick: () => setApptColorFilter(new Set()), style: { padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "CLEAR"))),
-                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })),
+                filteredAppts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onView: openViewAppt, onExport: exportEventToApple })),
                 filteredAppts.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                     React.createElement("div", { style: { fontSize: 28, marginBottom: 10 } }, "[ ]"),
                     React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO APPOINTMENTS")))),
@@ -1243,6 +1336,7 @@ function App() {
                         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                             React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
                             React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
+                            a.categoryText && React.createElement("div", { style: { fontSize: 11, color: a.color, letterSpacing: 1, lineHeight: 1.6, fontWeight: 800 } }, "Category: ", a.categoryText),
                             (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
                         React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
                     React.createElement("button", { onClick: () => exportEventToApple(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
@@ -1277,7 +1371,17 @@ function App() {
                         React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, alertDate: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "Clear"))),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
                 React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setApptDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: apptDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: apptDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
-                React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setApptDraft(d => ({ ...d, color: c })), style: { width: 26, height: 26, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: apptDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: apptDraft.color === c ? 1 : 0.4 } }))),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "CATEGORY"),
+                React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 } },
+                    eventCategories.map(cat => React.createElement("button", { key: cat.id, onClick: () => setApptDraft(d => ({ ...d, categoryId: cat.id, categoryText: capitalizeLabel(cat.name), color: cat.color })), style: { minWidth: 74, padding: "8px 10px", borderRadius: 8, background: cat.color + "22", border: apptDraft.categoryId === cat.id ? `1px solid ${cat.color}` : `1px solid ${C.border}`, cursor: "pointer", outline: apptDraft.categoryId === cat.id ? `2px solid ${cat.color}` : "2px solid transparent", outlineOffset: 1, opacity: apptDraft.categoryId === cat.id ? 1 : 0.65, color: cat.color, fontWeight: 900, fontSize: 9, fontFamily: "inherit", letterSpacing: 0.5 } }, cat.name)),
+                    React.createElement("button", { onClick: () => setShowEventCatMgr(v => !v), style: { minWidth: 74, padding: "8px 10px", borderRadius: 8, border: `1px dashed ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 900, fontSize: 9, fontFamily: "inherit", letterSpacing: 0.5 } }, "+ CATEGORY")),
+                showEventCatMgr && React.createElement("div", { style: { background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10, marginBottom: 12 } },
+                    React.createElement("input", { placeholder: "New event category", value: eventCatDraft.name, onChange: e => setEventCatDraft(d => ({ ...d, name: e.target.value })), style: { ...inp, marginBottom: 8 } }),
+                    React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setEventCatDraft(d => ({ ...d, color: c })), style: { width: 24, height: 24, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: eventCatDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: eventCatDraft.color === c ? 1 : 0.45 } }))),
+                    React.createElement("button", { onClick: addEventCategory, style: { width: "100%", padding: 9, borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, "ADD CATEGORY"),
+                    eventCategories.map(cat => React.createElement("div", { key: cat.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "5px 0", borderTop: `1px solid ${C.border}` } },
+                        React.createElement("span", { style: { color: cat.color, fontSize: 10, fontWeight: 800, letterSpacing: 1 } }, cat.name),
+                        !DEFAULT_EVENT_CATEGORIES.some(d => d.id === cat.id) && React.createElement("button", { onClick: () => deleteEventCategory(cat.id), style: { background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 12, fontWeight: 900 } }, "×")))),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
                     React.createElement("button", { onClick: () => { setShowApptForm(false); setEditingApptId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
                     React.createElement("button", { type: "button", onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")),
