@@ -252,7 +252,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v40";
+const APP_VERSION = "v41";
 
 function capitalizeLabel(s) {
     return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "";
@@ -549,6 +549,124 @@ function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, on
                 }))));
 }
 
+
+const MED_DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function cleanMedTimes(times) {
+    if (Array.isArray(times))
+        return times.map(t => String(t || "").trim()).filter(Boolean);
+    if (typeof times === "string")
+        return times.split(",").map(t => t.trim()).filter(Boolean);
+    return [];
+}
+function buildMedDoseKey(med, dateStr, label) {
+    return "med-" + med.id + "-" + dateStr + "-" + String(label || "dose").replace(/[^a-z0-9]/gi, "_");
+}
+function getMedDosesForDate(med, dateStr) {
+    if (!med || !med.id || !dateStr)
+        return [];
+    const d = new Date(dateStr + "T12:00:00");
+    if (Number.isNaN(d.getTime()))
+        return [];
+    const type = med.scheduleType || "daily-anytime";
+    let labels = [];
+    if (type === "daily-times") {
+        const times = cleanMedTimes(med.times);
+        labels = (times.length ? times : ["09:00"]).map(t => ({ label: t, time: t }));
+    }
+    else if (type === "weekly") {
+        const day = Number(med.weeklyDay ?? 0);
+        if (d.getDay() !== day)
+            return [];
+        const t = med.weeklyTime || "";
+        labels = [{ label: t || "Weekly dose", time: t }];
+    }
+    else if (type === "interval") {
+        const intervalDays = Math.max(1, Number(med.intervalDays || 1));
+        const start = new Date((med.startDate || dateStr) + "T12:00:00");
+        if (Number.isNaN(start.getTime()))
+            return [];
+        const diff = Math.floor((d.getTime() - start.getTime()) / 86400000);
+        if (diff < 0 || diff % intervalDays !== 0)
+            return [];
+        const t = med.intervalTime || "";
+        labels = [{ label: t || ("Every " + intervalDays + " day dose"), time: t }];
+    }
+    else {
+        const n = Math.max(1, Math.min(12, Number(med.timesPerDay || 1)));
+        labels = Array.from({ length: n }, (_, i) => ({ label: "Dose " + (i + 1), time: "" }));
+    }
+    return labels.map(x => ({ ...x, key: buildMedDoseKey(med, dateStr, x.label) }));
+}
+function medScheduleSummary(med) {
+    if (!med)
+        return "";
+    const type = med.scheduleType || "daily-anytime";
+    if (type === "daily-times") {
+        const times = cleanMedTimes(med.times);
+        return "Daily at " + (times.length ? times.join(", ") : "chosen times");
+    }
+    if (type === "weekly")
+        return "Weekly on " + MED_DAYS[Number(med.weeklyDay ?? 0)] + (med.weeklyTime ? " at " + med.weeklyTime : "");
+    if (type === "interval")
+        return "Every " + Math.max(1, Number(med.intervalDays || 1)) + " day(s)" + (med.startDate ? ", from " + formatBrDate(med.startDate) : "") + (med.intervalTime ? " at " + med.intervalTime : "");
+    const n = Math.max(1, Number(med.timesPerDay || 1));
+    return n === 1 ? "Once a day, no specific time" : n + " times a day, no specific time";
+}
+function MedicationCard({ med, medLogs, onToggleDose, onEdit, onDelete }) {
+    const doses = getMedDosesForDate(med, todayStr());
+    const done = doses.filter(d => medLogs && medLogs[d.key]).length;
+    const total = doses.length;
+    const color = med.color || C.green;
+    return React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${C.border}`, borderLeft: `3px solid ${color}` } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                React.createElement("div", { style: { fontSize: 15, fontWeight: 900, color: C.text, lineHeight: 1.25 } }, med.name || "Medication"),
+                React.createElement("div", { style: { fontSize: 10, color: color, fontWeight: 800, letterSpacing: 1, marginTop: 4 } }, medScheduleSummary(med)),
+                total > 0 && React.createElement("div", { style: { fontSize: 9, color: done === total ? C.green : C.muted, fontWeight: 800, letterSpacing: 1, marginTop: 4 } }, done, "/", total, " TAKEN TODAY")),
+            React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
+                React.createElement("button", { onClick: () => onEdit(med), style: { background: C.bg3, border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: C.muted, fontWeight: 900 } }, "✎"),
+                React.createElement("button", { onClick: () => onDelete(med.id), style: { background: "#FF44441A", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 14 } }, "×"))),
+        med.notes && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.55, marginBottom: 10, whiteSpace: "pre-wrap" } }, med.notes),
+        doses.length ? React.createElement("div", { style: { display: "grid", gap: 7 } },
+            doses.map(dose => {
+                const checked = !!(medLogs && medLogs[dose.key]);
+                return React.createElement("button", { key: dose.key, onClick: () => onToggleDose(dose.key), style: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 10px", borderRadius: 10, border: checked ? `1px solid ${C.green}` : `1px solid ${C.border}`, background: checked ? C.green + "18" : C.bg3, cursor: "pointer", color: checked ? C.green : C.text, fontFamily: "inherit", textAlign: "left" } },
+                    React.createElement("span", { style: { width: 20, height: 20, borderRadius: 6, border: checked ? "none" : `1px solid ${C.muted}`, background: checked ? C.green : "transparent", color: C.bg0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, flexShrink: 0 } }, checked ? "✓" : ""),
+                    React.createElement("span", { style: { fontSize: 12, fontWeight: 800, letterSpacing: 0.5 } }, dose.label));
+            }))
+            : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "6px 0" } }, "No dose scheduled for today."));
+}
+function MedicationForm({ draft, setDraft, onSave, onCancel, editing }) {
+    const type = draft.scheduleType || "daily-anytime";
+    const timeText = cleanMedTimes(draft.times).join(", ");
+    return React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginBottom: 14 } },
+        React.createElement("input", { autoFocus: true, placeholder: "Medication name", value: draft.name || "", onChange: e => setDraft(d => ({ ...d, name: e.target.value })), style: { ...inp, marginBottom: 8 } }),
+        React.createElement("textarea", { placeholder: "Notes, dose, instructions (optional)", value: draft.notes || "", onChange: e => setDraft(d => ({ ...d, notes: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
+        React.createElement("select", { value: type, onChange: e => setDraft(d => ({ ...d, scheduleType: e.target.value })), style: { ...inp, marginBottom: 8 } },
+            React.createElement("option", { value: "daily-anytime" }, "Daily · no specific time"),
+            React.createElement("option", { value: "daily-times" }, "Daily · specific times"),
+            React.createElement("option", { value: "weekly" }, "Weekly"),
+            React.createElement("option", { value: "interval" }, "Every X days")),
+        type === "daily-anytime" && React.createElement("div", { style: { marginBottom: 8 } },
+            React.createElement("div", { style: { fontSize: 8, fontWeight: 800, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "TIMES PER DAY"),
+            React.createElement("input", { type: "number", min: 1, max: 12, value: draft.timesPerDay || 1, onChange: e => setDraft(d => ({ ...d, timesPerDay: e.target.value })), style: { ...inp } })),
+        type === "daily-times" && React.createElement("div", { style: { marginBottom: 8 } },
+            React.createElement("div", { style: { fontSize: 8, fontWeight: 800, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "TIMES, SEPARATED BY COMMAS"),
+            React.createElement("input", { placeholder: "09:00, 21:00", value: timeText, onChange: e => setDraft(d => ({ ...d, times: e.target.value })), style: { ...inp } })),
+        type === "weekly" && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },
+            React.createElement("select", { value: draft.weeklyDay ?? 0, onChange: e => setDraft(d => ({ ...d, weeklyDay: Number(e.target.value) })), style: { ...inp } },
+                MED_DAYS.map((day, i) => React.createElement("option", { key: day, value: i }, day))),
+            React.createElement("input", { type: "time", value: draft.weeklyTime || "", onChange: e => setDraft(d => ({ ...d, weeklyTime: e.target.value })), style: { ...inp, padding: "10px 6px", textAlign: "center" } })),
+        type === "interval" && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,0.8fr) minmax(0,1.1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },
+            React.createElement("input", { type: "number", min: 1, value: draft.intervalDays || 2, onChange: e => setDraft(d => ({ ...d, intervalDays: e.target.value })), style: { ...inp } }),
+            React.createElement("input", { type: "date", value: draft.startDate || todayStr(), onChange: e => setDraft(d => ({ ...d, startDate: e.target.value })), style: { ...inp, minWidth: 0 } }),
+            React.createElement("input", { type: "time", value: draft.intervalTime || "", onChange: e => setDraft(d => ({ ...d, intervalTime: e.target.value })), style: { ...inp, padding: "10px 6px", textAlign: "center" } })),
+        React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setDraft(d => ({ ...d, color: c })), style: { width: 24, height: 24, borderRadius: 7, border: "none", background: c, cursor: "pointer", outline: (draft.color || C.green) === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: (draft.color || C.green) === c ? 1 : 0.45 } }))),
+        React.createElement("div", { style: { display: "flex", gap: 8 } },
+            React.createElement("button", { onClick: onCancel, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 800, fontFamily: "inherit", fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
+            React.createElement("button", { onClick: onSave, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontFamily: "inherit", fontSize: 11, letterSpacing: 1 } }, editing ? "SAVE MEDICATION" : "+ ADD MEDICATION")));
+}
+
 function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixed }) {
     var _a, _b, _c, _d;
     const [text, setText] = useState("");
@@ -598,6 +716,12 @@ function App() {
     const importRef = useRef(null);
     const [reviewDraft, setReviewDraft] = useState({ done: "", move: "", tomorrow: "" });
     const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
+    const [meds, setMeds] = useLocalState("adhd3_meds", []);
+    const [medLogs, setMedLogs] = useLocalState("adhd3_med_logs", {});
+    const [showMedForm, setShowMedForm] = useState(false);
+    const [editingMedId, setEditingMedId] = useState(null);
+    const emptyMed = () => ({ name: "", notes: "", scheduleType: "daily-anytime", timesPerDay: 1, times: ["09:00"], weeklyDay: today.getDay(), weeklyTime: "09:00", intervalDays: 2, startDate: todayStr(), intervalTime: "09:00", color: C.green });
+    const [medDraft, setMedDraft] = useState(emptyMed);
     const [rawTasks, setTasks] = useLocalState("adhd3_tasks", []);
     const tasks = rawTasks.map(t => {
         const normalized = { dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [], imageUrls: [], ...t, imageUrls: getImages(t) };
@@ -1002,11 +1126,38 @@ function App() {
         const now = Date.now();
         setNotes(p => [...p, { id: now, createdAt: now, title, type: "descriptive", content: "", topics: [], folderId, imageUrl: "" }]);
     }
+    function openAddMed() {
+        setMedDraft(emptyMed());
+        setEditingMedId(null);
+        setShowMedForm(true);
+    }
+    function openEditMed(med) {
+        setMedDraft({ ...emptyMed(), ...med });
+        setEditingMedId(med.id);
+        setShowMedForm(true);
+    }
+    function saveMed() {
+        if (!medDraft.name.trim())
+            return;
+        const saved = { ...medDraft, id: editingMedId !== null ? editingMedId : Date.now(), name: medDraft.name.trim() };
+        if (editingMedId !== null)
+            setMeds(p => p.map(m => m.id === editingMedId ? saved : m));
+        else
+            setMeds(p => [...p, saved]);
+        setShowMedForm(false);
+        setEditingMedId(null);
+    }
+    function deleteMed(id) {
+        setMeds(p => p.filter(m => m.id !== id));
+    }
+    function toggleMedDose(key) {
+        setMedLogs(p => ({ ...p, [key]: !p[key] }));
+    }
     function exportBackup() {
         const data = {
             version: 1,
             exportedAt: new Date().toISOString(),
-            motivation, focusColor, tasks, categories, eventCategories, appts, notes, folders, reviews
+            motivation, focusColor, tasks, categories, eventCategories, appts, notes, folders, reviews, meds, medLogs
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -1038,6 +1189,10 @@ function App() {
                 setFolders(data.folders);
             if (Array.isArray(data.reviews))
                 setReviews(data.reviews);
+            if (Array.isArray(data.meds))
+                setMeds(data.meds);
+            if (data.medLogs && typeof data.medLogs === "object")
+                setMedLogs(data.medLogs);
             alert("Backup imported.");
         }
         catch {
@@ -1121,6 +1276,8 @@ function App() {
     const total = tasks.length;
     const pct = total ? Math.round((done / total) * 100) : 0;
     const visibleNotes = (selFolderId ? notes.filter(n => n.folderId === selFolderId) : notes).sort((a, b) => b.createdAt - a.createdAt);
+    const todayMedDoses = meds.flatMap(m => getMedDosesForDate(m, todayStr()).map(d => ({ med: m, dose: d, done: !!medLogs[d.key] })));
+    const medsTakenToday = todayMedDoses.filter(x => x.done).length;
     // ── Shared tab content ─────────────────────────────────────────────────────
     const tabContent = (React.createElement(React.Fragment, null,
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
@@ -1150,6 +1307,7 @@ function App() {
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" } },
                     React.createElement(CatPill, { label: `${todayTasks.length} OPEN TASKS`, active: true, color: todayTasks.length ? C.accent : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("all"); } }),
                     React.createElement(CatPill, { label: `${todayAppts.length} EVENTS`, active: true, color: todayAppts.length ? C.green : C.dim, onClick: () => setTab("calendar") }),
+                    React.createElement(CatPill, { label: `${medsTakenToday}/${todayMedDoses.length} MEDS`, active: true, color: todayMedDoses.length && medsTakenToday === todayMedDoses.length ? C.green : todayMedDoses.length ? C.amber : C.dim, onClick: () => setTab("meds") }),
                     React.createElement(CatPill, { label: `${tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr()).length} OVERDUE`, active: true, color: tasks.some(t => !t.done && t.dueDate && t.dueDate < todayStr()) ? C.red : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("overdue"); } }))),
             React.createElement(SectionHeader, { icon: "\u22A1", label: "TODAY'S TASKS", color: C.accent }),
             todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: task => { setTab("tasks"); openEditTask(task); }, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple }))
@@ -1388,6 +1546,16 @@ function App() {
                     React.createElement("button", { onClick: () => { setShowApptForm(false); setEditingApptId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
                     React.createElement("button", { type: "button", onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")),
                 React.createElement("button", { type: "button", onClick: saveApptAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingApptId ? "SAVE + SEND TO APPLE" : "+ ADD EVENT + SEND TO APPLE"))) : null)),
+        !searchOpen && tab === "meds" && (React.createElement("div", null,
+            React.createElement(SectionHeader, { icon: "💊", label: "MEDICATION TRACKER", color: C.green }),
+            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.green, marginBottom: 6 } }, "// TODAY'S DOSES"),
+                React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: 1 } }, medsTakenToday, "/", todayMedDoses.length, " TAKEN"),
+                React.createElement("div", { style: { fontSize: 11, color: C.muted, marginTop: 4, lineHeight: 1.5 } }, "Check off each dose when you take it. Daily boxes reset automatically because each dose is tied to today’s date.")),
+            showMedForm && React.createElement(MedicationForm, { draft: medDraft, setDraft: setMedDraft, onSave: saveMed, onCancel: () => { setShowMedForm(false); setEditingMedId(null); }, editing: editingMedId !== null }),
+            React.createElement("button", { onClick: openAddMed, style: { width: "100%", marginBottom: 12, padding: 11, borderRadius: 12, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, "+ ADD MEDICATION"),
+            meds.length ? meds.map(m => React.createElement(MedicationCard, { key: m.id, med: m, medLogs: medLogs, onToggleDose: toggleMedDose, onEdit: openEditMed, onDelete: deleteMed }))
+                : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "14px 0" } }, "No medications added yet."))),
         !searchOpen && tab === "notes" && (React.createElement("div", null, noteView === "view" ? (() => {
             const n = notes.find(x => x.id === selectedNoteId);
             const folder = n ? folders.find(f => f.id === n.folderId) : null;
@@ -1500,14 +1668,14 @@ function App() {
                     React.createElement("div", { style: { height: 3, background: C.bg4, borderRadius: 3, overflow: "hidden" } },
                         React.createElement("div", { style: { height: "100%", borderRadius: 3, background: pct === 100 ? C.green : `linear-gradient(90deg, ${C.accent}, ${C.accentD})`, width: `${pct}%`, transition: "width 0.5s", boxShadow: `0 0 6px ${C.accent}88` } })))),
                 React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 3, color: C.dim, marginBottom: 8 } }, "NAVIGATE"),
-                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, [["today", "◉", "TODAY"], ["tasks", "⊡", "TASKS"], ["calendar", "📅", "CALENDAR"], ["notes", "≡", "NOTES"]].map(([key, icon, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { padding: "11px 14px", background: tab === key ? C.accent + "22" : "transparent", border: tab === key ? `1px solid ${C.accent}44` : `1px solid transparent`, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 1.5, color: tab === key ? C.accent : C.muted, textAlign: "left", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", transition: "all 0.15s" } },
+                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, [["today", "◉", "TODAY"], ["tasks", "⊡", "TASKS"], ["calendar", "📅", "CALENDAR"], ["meds", "💊", "MEDS"], ["notes", "≡", "NOTES"]].map(([key, icon, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { padding: "11px 14px", background: tab === key ? C.accent + "22" : "transparent", border: tab === key ? `1px solid ${C.accent}44` : `1px solid transparent`, borderRadius: 10, cursor: "pointer", fontWeight: 700, fontSize: 11, letterSpacing: 1.5, color: tab === key ? C.accent : C.muted, textAlign: "left", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", transition: "all 0.15s" } },
                     React.createElement("span", null, icon),
                     React.createElement("span", null, label))))),
                 React.createElement("div", { style: { flex: 1 } }),
-                React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "notes" ? openAddNote() : openAddTask(); }, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: `0 0 20px ${C.accent}44`, marginTop: 24 } }, "+ ADD")),
+                React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "meds" ? openAddMed() : tab === "notes" ? openAddNote() : openAddTask(); }, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: `0 0 20px ${C.accent}44`, marginTop: 24 } }, "+ ADD")),
             React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } },
                 React.createElement("div", { style: { height: 52, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 32px", gap: 12, flexShrink: 0, background: C.bg1 } },
-                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "today" ? "◉ TODAY" : tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : "≡ NOTES"),
+                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "today" ? "◉ TODAY" : tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : tab === "meds" ? "💊 MEDS" : "≡ NOTES"),
                     React.createElement("div", { style: { flex: 1 } }),
                     searchOpen && (React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, width: 300, padding: "7px 14px", border: `1px solid ${C.accent}66` } })),
                     React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" } }, "\uD83D\uDD0D")),
@@ -1536,12 +1704,12 @@ function App() {
             React.createElement("div", { style: { height: 4, background: C.bg4, borderRadius: 4, overflow: "hidden" } },
                 React.createElement("div", { style: { height: "100%", borderRadius: 4, background: pct === 100 ? C.green : `linear-gradient(90deg, ${C.accent}, ${C.accentD})`, width: `${pct}%`, transition: "width 0.5s cubic-bezier(.4,2,.6,1)", boxShadow: `0 0 8px ${C.accent}88` } })))),
         React.createElement("div", { style: { margin: "8px 16px 0", display: "flex", gap: 8, alignItems: "center" } },
-            React.createElement("div", { style: { flex: 1, display: "flex", background: C.bg2, borderRadius: 12, padding: 4, gap: 4, border: `1px solid ${C.border}` } }, [["today", "TODAY"], ["tasks", "TASKS"], ["calendar", "CAL"], ["notes", "NOTES"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { flex: 1, padding: "8px 0", background: tab === key && !searchOpen ? C.accent : "transparent", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 1, color: tab === key && !searchOpen ? C.bg0 : C.muted, transition: "all 0.2s", fontFamily: "inherit", boxShadow: tab === key && !searchOpen ? `0 0 16px ${C.accent}66` : "none" } }, label)))),
+            React.createElement("div", { style: { flex: 1, display: "flex", background: C.bg2, borderRadius: 12, padding: 4, gap: 4, border: `1px solid ${C.border}` } }, [["today", "TODAY"], ["tasks", "TASKS"], ["calendar", "CAL"], ["meds", "MEDS"], ["notes", "NOTES"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { flex: 1, padding: "8px 0", background: tab === key && !searchOpen ? C.accent : "transparent", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 1, color: tab === key && !searchOpen ? C.bg0 : C.muted, transition: "all 0.2s", fontFamily: "inherit", boxShadow: tab === key && !searchOpen ? `0 0 16px ${C.accent}66` : "none" } }, label)))),
             React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 38, height: 38, borderRadius: 12, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, "\uD83D\uDD0D")),
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px 100px" } }, tabContent),
-        React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "notes" ? openAddNote() : openAddTask(); }, style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, "+"),
+        React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "meds" ? openAddMed() : tab === "notes" ? openAddNote() : openAddTask(); }, style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, "+"),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
             React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "\u00d7"),
             React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
