@@ -252,7 +252,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v42";
+const APP_VERSION = "v43";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -265,7 +265,7 @@ function weekdayLabel(dateStr) {
     return d.toLocaleDateString([], { weekday: "long" });
 }
 function pruneRecentDayMap(map) {
-    const keep = new Set([todayStr(), offsetDateStr(-1), offsetDateStr(-2)]);
+    const keep = new Set([offsetDateStr(-2), offsetDateStr(-1), todayStr(), offsetDateStr(1), offsetDateStr(2)]);
     const out = {};
     for (const k of Object.keys(map || {})) {
         if (keep.has(k))
@@ -1380,9 +1380,18 @@ function App() {
     const visibleNotes = (selFolderId ? notes.filter(n => n.folderId === selFolderId) : notes).sort((a, b) => b.createdAt - a.createdAt);
     const todayMedDoses = meds.flatMap(m => getMedDosesForDate(m, todayStr()).map(d => ({ med: m, dose: d, done: !!medLogs[d.key] })));
     const medsTakenToday = todayMedDoses.filter(x => x.done).length;
-    const todayTaskDateOptions = [todayStr(), offsetDateStr(-1), offsetDateStr(-2)];
+    const todayTaskDateOptions = [offsetDateStr(-2), offsetDateStr(-1), todayStr(), offsetDateStr(1), offsetDateStr(2)];
     const selectedTodayTasks = getTodayList(selectedTodayTaskDate);
     const selectedTodayUnfinished = selectedTodayTasks.filter(t => !t.done);
+    const selectedTodayDone = selectedTodayTasks.filter(t => t.done).length;
+    const selectedTodayTotal = selectedTodayTasks.length;
+    const selectedTodayPct = selectedTodayTotal ? Math.round((selectedTodayDone / selectedTodayTotal) * 100) : 0;
+    const selectedTodayIsPast = selectedTodayTaskDate < todayStr();
+    const selectedTodayCanEdit = selectedTodayTaskDate >= todayStr();
+    const taskProgressDone = taskSubTab === "today" ? selectedTodayDone : done;
+    const taskProgressTotal = taskSubTab === "today" ? selectedTodayTotal : total;
+    const taskProgressPct = taskProgressTotal ? Math.round((taskProgressDone / taskProgressTotal) * 100) : 0;
+    const taskProgressLabel = taskSubTab === "today" ? (selectedTodayTaskDate === todayStr() ? "TODAY TASKS" : weekdayLabel(selectedTodayTaskDate).toUpperCase() + " TASKS") : "GENERAL TASKS";
     // ── Shared tab content ─────────────────────────────────────────────────────
     const tabContent = (React.createElement(React.Fragment, null,
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
@@ -1438,13 +1447,11 @@ function App() {
                 [["today", "TODAY"], ["general", "GENERAL"]].map(([key, label]) => React.createElement("button", { key, onClick: () => setTaskSubTab(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 900, fontSize: 10, letterSpacing: 1, fontFamily: "inherit", background: taskSubTab === key ? C.accent : "transparent", color: taskSubTab === key ? C.bg0 : C.muted, boxShadow: taskSubTab === key ? `0 0 10px ${C.accent}55` : "none" } }, label))),
             taskSubTab === "today" && (React.createElement("div", null,
                 React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } },
-                    todayTaskDateOptions.map((d, i) => React.createElement("button", { key: d, onClick: () => { setSelectedTodayTaskDate(d); setShowTodayTaskForm(false); }, style: { padding: "6px 10px", borderRadius: 10, border: selectedTodayTaskDate === d ? `1px solid ${C.amber}` : `1px solid ${C.border}`, background: selectedTodayTaskDate === d ? C.amber + "22" : C.bg2, color: selectedTodayTaskDate === d ? C.amber : C.muted, fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, cursor: "pointer" } }, i === 0 ? "TODAY" : weekdayLabel(d)))),
-                React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
-                    React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.amber, marginBottom: 6 } }, selectedTodayTaskDate === todayStr() ? "// TODAY LIST" : "// " + weekdayLabel(selectedTodayTaskDate).toUpperCase()),
-                    React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5 } }, selectedTodayTaskDate === todayStr() ? "A clean daily scratch list. These tasks do not go to Apple export." : "Viewing an older daily list. You can copy unfinished items back into today.")),
-                selectedTodayTaskDate !== todayStr() && selectedTodayUnfinished.length > 0 && React.createElement("button", { onClick: () => copyUnfinishedToToday(selectedTodayTaskDate), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, "COPY UNFINISHED TO TODAY"),
-                selectedTodayTaskDate === todayStr() && React.createElement("button", { onClick: () => setShowTodayTaskForm(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, showTodayTaskForm ? "CLOSE QUICK TASK" : "+ ADD TODAY TASK"),
-                showTodayTaskForm && selectedTodayTaskDate === todayStr() && React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
+                    todayTaskDateOptions.map((d, i) => React.createElement("button", { key: d, onClick: () => { setSelectedTodayTaskDate(d); setShowTodayTaskForm(false); }, style: { padding: "6px 10px", borderRadius: 10, border: selectedTodayTaskDate === d ? `1px solid ${C.amber}` : `1px solid ${C.border}`, background: selectedTodayTaskDate === d ? C.amber + "22" : C.bg2, color: selectedTodayTaskDate === d ? C.amber : C.muted, fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, cursor: "pointer" } }, d === todayStr() ? "TODAY" : weekdayLabel(d)))),
+
+                selectedTodayIsPast && selectedTodayUnfinished.length > 0 && React.createElement("button", { onClick: () => copyUnfinishedToToday(selectedTodayTaskDate), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, "COPY UNFINISHED TO TODAY"),
+                selectedTodayCanEdit && React.createElement("button", { onClick: () => setShowTodayTaskForm(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, showTodayTaskForm ? "CLOSE QUICK TASK" : "+ ADD LIST TASK"),
+                showTodayTaskForm && selectedTodayCanEdit && React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
                     React.createElement("input", { autoFocus: true, placeholder: "Today task title", value: todayTaskDraft.title, onChange: e => setTodayTaskDraft(d => ({ ...d, title: e.target.value })), onKeyDown: e => e.key === "Enter" && saveTodayTask(), style: { ...inp, marginBottom: 8 } }),
                     React.createElement("textarea", { placeholder: "Description (optional)", value: todayTaskDraft.description, onChange: e => setTodayTaskDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
                     React.createElement("div", { style: { display: "flex", gap: 8 } },
@@ -1797,7 +1804,7 @@ function App() {
                     React.createElement("span", null, icon),
                     React.createElement("span", null, label))))),
                 React.createElement("div", { style: { flex: 1 } }),
-                React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "meds" ? openAddMed() : tab === "notes" ? openAddNote() : tab === "tasks" && taskSubTab === "today" ? setShowTodayTaskForm(v => !v) : openAddTask(); }, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: `0 0 20px ${C.accent}44`, marginTop: 24 } }, "+ ADD")),
+                React.createElement("button", { onClick: () => { tab === "calendar" ? openAddAppt() : tab === "meds" ? openAddMed() : tab === "notes" ? openAddNote() : tab === "tasks" && taskSubTab === "today" ? (selectedTodayCanEdit ? setShowTodayTaskForm(v => !v) : setSelectedTodayTaskDate(todayStr())) : openAddTask(); }, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: `0 0 20px ${C.accent}44`, marginTop: 24 } }, "+ ADD")),
             React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } },
                 React.createElement("div", { style: { height: 52, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 32px", gap: 12, flexShrink: 0, background: C.bg1 } },
                     React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "today" ? "◉ TODAY" : tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : tab === "meds" ? "💊 MEDS" : "≡ NOTES"),
@@ -1817,20 +1824,20 @@ function App() {
                 React.createElement("button", { onClick: e => { e.stopPropagation(); saveMot(); }, style: { background: C.accent, color: C.bg0, border: "none", borderRadius: 8, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1 } }, "SAVE"))) : (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { color: focusColor, fontSize: 13, fontWeight: 600, lineHeight: 1.5 } }, motivation),
                 React.createElement("div", { style: { fontSize: 9, color: C.muted, marginTop: 4, letterSpacing: 1 } }, "TAP TO EDIT")))),
-        tab === "tasks" && total > 0 && (React.createElement("div", { style: { margin: "8px 16px 0", padding: "8px 14px", background: C.bg2, borderRadius: 12, border: `1px solid ${C.border}` } },
-            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 2 } },
-                React.createElement("span", null, "TASKS"),
-                React.createElement("span", { style: { color: pct === 100 ? C.green : C.accent } },
-                    pct,
-                    "% \u2014 ",
-                    done,
-                    "/",
-                    total)),
-            React.createElement("div", { style: { height: 4, background: C.bg4, borderRadius: 4, overflow: "hidden" } },
-                React.createElement("div", { style: { height: "100%", borderRadius: 4, background: pct === 100 ? C.green : `linear-gradient(90deg, ${C.accent}, ${C.accentD})`, width: `${pct}%`, transition: "width 0.5s cubic-bezier(.4,2,.6,1)", boxShadow: `0 0 8px ${C.accent}88` } })))),
         React.createElement("div", { style: { margin: "8px 16px 0", display: "flex", gap: 8, alignItems: "center" } },
             React.createElement("div", { style: { flex: 1, display: "flex", background: C.bg2, borderRadius: 12, padding: 4, gap: 4, border: `1px solid ${C.border}` } }, [["today", "TODAY"], ["tasks", "TASKS"], ["calendar", "CAL"], ["meds", "MEDS"], ["notes", "NOTES"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { flex: 1, padding: "8px 0", background: tab === key && !searchOpen ? C.accent : "transparent", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 1, color: tab === key && !searchOpen ? C.bg0 : C.muted, transition: "all 0.2s", fontFamily: "inherit", boxShadow: tab === key && !searchOpen ? `0 0 16px ${C.accent}66` : "none" } }, label)))),
             React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 38, height: 38, borderRadius: 12, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, "\uD83D\uDD0D")),
+        tab === "tasks" && taskProgressTotal > 0 && (React.createElement("div", { style: { margin: "8px 16px 0", padding: "8px 14px", background: C.bg2, borderRadius: 12, border: `1px solid ${C.border}` } },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 2 } },
+                React.createElement("span", null, taskProgressLabel),
+                React.createElement("span", { style: { color: taskProgressPct === 100 ? C.green : C.accent } },
+                    taskProgressPct,
+                    "% — ",
+                    taskProgressDone,
+                    "/",
+                    taskProgressTotal)),
+            React.createElement("div", { style: { height: 4, background: C.bg4, borderRadius: 4, overflow: "hidden" } },
+                React.createElement("div", { style: { height: "100%", borderRadius: 4, background: taskProgressPct === 100 ? C.green : `linear-gradient(90deg, ${C.accent}, ${C.accentD})`, width: `${taskProgressPct}%`, transition: "width 0.5s cubic-bezier(.4,2,.6,1)", boxShadow: `0 0 8px ${C.accent}88` } })))),
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px 100px" } }, tabContent),
