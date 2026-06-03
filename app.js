@@ -252,7 +252,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v43";
+const APP_VERSION = "v44";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -887,13 +887,13 @@ function App() {
     function getTodayList(dateStr = selectedTodayTaskDate) {
         return [...((todayTasksByDate && todayTasksByDate[dateStr]) || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     }
-    function addTodayTask(title, description = "", dateStr = selectedTodayTaskDate) {
+    function addTodayTask(title, description = "", dateStr = selectedTodayTaskDate, sourceTaskId = null) {
         const cleanTitle = String(title || "").trim();
         if (!cleanTitle)
             return;
         setTodayTasksByDate(p => {
             const current = [...((p && p[dateStr]) || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-            const nextTask = { id: Date.now() + Math.floor(Math.random() * 1000), title: cleanTitle, description: description || "", done: false, order: current.length, createdAt: Date.now() };
+            const nextTask = { id: Date.now() + Math.floor(Math.random() * 1000), title: cleanTitle, description: description || "", done: false, order: current.length, createdAt: Date.now(), sourceTaskId };
             return pruneRecentDayMap({ ...(p || {}), [dateStr]: [...current, nextTask] });
         });
     }
@@ -903,10 +903,26 @@ function App() {
         setShowTodayTaskForm(false);
     }
     function toggleTodayTask(id, dateStr = selectedTodayTaskDate) {
+        let linkedSourceTaskId = null;
+        let linkedDoneValue = null;
         setTodayTasksByDate(p => {
-            const current = ((p && p[dateStr]) || []).map(t => t.id === id ? { ...t, done: !t.done } : t);
+            const current = ((p && p[dateStr]) || []).map(t => {
+                if (t.id !== id)
+                    return t;
+                const nextDone = !t.done;
+                linkedSourceTaskId = t.sourceTaskId || null;
+                linkedDoneValue = nextDone;
+                return { ...t, done: nextDone };
+            });
             return { ...(p || {}), [dateStr]: current };
         });
+        if (linkedSourceTaskId !== null) {
+            setTasks(p => p.map(t => {
+                if (t.id !== linkedSourceTaskId)
+                    return t;
+                return linkedDoneValue ? compactDoneTaskRecord({ ...t, done: true }) : { ...t, done: false };
+            }));
+        }
     }
     function deleteTodayTask(id, dateStr = selectedTodayTaskDate) {
         setTodayTasksByDate(p => {
@@ -928,13 +944,13 @@ function App() {
         });
     }
     function copyTaskToToday(task) {
-        addTodayTask(task.text || task.title || "Untitled task", task.description || "", todayStr());
+        addTodayTask(task.text || task.title || "Untitled task", task.description || "", todayStr(), task.id);
         setTaskSubTab("today");
         setSelectedTodayTaskDate(todayStr());
     }
     function copyUnfinishedToToday(dateStr = selectedTodayTaskDate) {
         const unfinished = getTodayList(dateStr).filter(t => !t.done);
-        unfinished.forEach(t => addTodayTask(t.title, t.description || "", todayStr()));
+        unfinished.forEach(t => addTodayTask(t.title, t.description || "", todayStr(), t.sourceTaskId || null));
         setSelectedTodayTaskDate(todayStr());
         setShowTodayTaskForm(false);
     }
