@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v44-link-today-general-tasks';
+const CACHE_NAME = 'adhd-planner-v45-pending-apple-sync';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
