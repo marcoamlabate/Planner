@@ -7,25 +7,25 @@ const C = {
 };
 const UI = {
     font: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif",
-    mono: "'IBM Plex Mono', 'SF Mono', ui-monospace, monospace",
-    appBg: "radial-gradient(circle at 18% 0%, rgba(35,196,255,0.18), transparent 34%), radial-gradient(circle at 92% 8%, rgba(167,139,250,0.14), transparent 30%), linear-gradient(180deg,#0B1020 0%,#070B14 100%)",
-    panelBg: "linear-gradient(180deg,rgba(17,24,39,0.96),rgba(10,16,30,0.96))",
-    cardBg: "linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.028))",
-    controlBg: "linear-gradient(180deg,rgba(255,255,255,0.075),rgba(255,255,255,0.035))",
-    border: "rgba(255,255,255,0.095)",
-    cardShadow: "0 12px 32px rgba(0,0,0,0.26)",
-    softShadow: "0 8px 22px rgba(0,0,0,0.20)",
-    glowBlue: "0 0 22px rgba(35,196,255,0.30)",
-    glowAmber: "0 0 22px rgba(255,190,61,0.26)",
+    mono: "'SF Mono', ui-monospace, monospace",
+    appBg: "radial-gradient(circle at 18% 0%, rgba(35,196,255,0.10), transparent 34%), radial-gradient(circle at 92% 8%, rgba(167,139,250,0.08), transparent 30%), linear-gradient(180deg,#0B1020 0%,#070B14 100%)",
+    panelBg: "linear-gradient(180deg,rgba(17,24,39,0.92),rgba(10,16,30,0.92))",
+    cardBg: "rgba(255,255,255,0.045)",
+    controlBg: "rgba(255,255,255,0.055)",
+    border: "rgba(255,255,255,0.075)",
+    cardShadow: "0 8px 20px rgba(0,0,0,0.14)",
+    softShadow: "0 5px 14px rgba(0,0,0,0.12)",
+    glowBlue: "0 0 12px rgba(35,196,255,0.14)",
+    glowAmber: "0 0 12px rgba(255,190,61,0.14)",
 };
 function cardSurface(extra = {}) {
-    return { background: UI.cardBg, border: `1px solid ${UI.border}`, boxShadow: UI.cardShadow, backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", ...extra };
+    return { background: UI.cardBg, border: `1px solid ${UI.border}`, boxShadow: "none", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", ...extra };
 }
 function controlSurface(extra = {}) {
-    return { background: UI.controlBg, border: `1px solid ${UI.border}`, boxShadow: UI.softShadow, ...extra };
+    return { background: UI.controlBg, border: `1px solid ${UI.border}`, boxShadow: "none", ...extra };
 }
 function actionButtonSurface(color, bg) {
-    return { width: 52, height: 52, borderRadius: 16, border: `1px solid ${color}38`, background: bg || UI.controlBg, color, cursor: "pointer", fontWeight: 900, fontSize: 18, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: bg ? `0 10px 24px ${color}24, inset 0 1px 0 rgba(255,255,255,0.12)` : UI.softShadow, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", lineHeight: 1 };
+    return { width: 48, height: 48, borderRadius: 15, border: `1px solid ${color}30`, background: bg || UI.controlBg, color, cursor: "pointer", fontWeight: 850, fontSize: 17, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: bg ? `0 6px 16px ${color}16, inset 0 1px 0 rgba(255,255,255,0.10)` : "none", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", lineHeight: 1 };
 }
 function ActionIcon({ name, size = 23 }) {
     const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", focusable: "false" };
@@ -45,13 +45,13 @@ function ActionIcon({ name, size = 23 }) {
 }
 const ACCENT_COLORS = ["#00C2FF", "#1EDF80", "#F5A623", "#FF4444", "#A78BFA", "#F97316", "#06B6D4", "#84CC16"];
 const PRIORITY = {
-    high: { label: "HIGH", icon: "▲", color: C.red, bg: "#FF44441A" },
-    medium: { label: "MED", icon: "●", color: C.amber, bg: "#F5A6231A" },
-    low: { label: "LOW", icon: "▼", color: C.green, bg: "#1EDF801A" },
+    high: { label: "High", icon: "▲", color: C.red, bg: "#FF44441A" },
+    medium: { label: "Medium", icon: "●", color: C.amber, bg: "#F5A6231A" },
+    low: { label: "Low", icon: "▼", color: C.green, bg: "#1EDF801A" },
 };
 const DAYS_S = ["S", "M", "T", "W", "T", "F", "S"];
 const DAYS_L = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
     const h = Math.floor(i / 4);
     const m = (i % 4) * 15;
@@ -291,7 +291,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v49";
+const APP_VERSION = "v50";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -468,7 +468,7 @@ function ImageUploadBtn({ value, onChange }) {
                 onChange(await readImageFile(f)); } }),
         value ? (React.createElement("div", { style: { position: "relative", display: "inline-block" } },
             React.createElement("img", { src: value, alt: "", onClick: () => openPlannerImage(value), style: { maxWidth: "100%", borderRadius: 10, maxHeight: 150, objectFit: "cover", display: "block" } }),
-            React.createElement("button", { onClick: () => onChange(""), style: { position: "absolute", top: 4, right: 4, background: "#00000088", border: "none", borderRadius: 6, width: 24, height: 24, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 14 } }, "\u00D7"))) : (React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "7px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: 1 } }, "+ ADD IMAGE"))));
+            React.createElement("button", { onClick: () => onChange(""), style: { position: "absolute", top: 4, right: 4, background: "#00000088", border: "none", borderRadius: 6, width: 24, height: 24, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 14 } }, "\u00D7"))) : (React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "7px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: 0.2 } }, "+ ADD IMAGE"))));
 }
 
 function MultiImageUploadBtn({ value, onChange }) {
@@ -489,16 +489,20 @@ function MultiImageUploadBtn({ value, onChange }) {
         images.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 } }, images.map((url, i) => React.createElement("div", { key: i, style: { position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", background: C.bg3, border: `1px solid ${C.border}` } },
             React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "zoom-in" } }),
             React.createElement("button", { onClick: () => removeAt(i), style: { position: "absolute", top: 4, right: 4, background: "#000000AA", border: "none", borderRadius: 6, width: 24, height: 24, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 14 } }, "\u00D7")))),
-        React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "7px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: 1 } }, images.length ? "+ ADD MORE IMAGES" : "+ ADD IMAGES")));
+        React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "7px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 10, fontFamily: "inherit", fontWeight: 700, letterSpacing: 0.2 } }, images.length ? "+ ADD MORE IMAGES" : "+ ADD IMAGES")));
 }
 function CatPill({ label, active, color, onClick }) {
-    return React.createElement("button", { onClick: onClick, style: { padding: "7px 12px", minHeight: 32, borderRadius: 999, border: `1px solid ${active ? color + "55" : UI.border}`, cursor: "pointer", background: active ? color + "26" : "rgba(255,255,255,0.045)", color: active ? color : C.muted, fontWeight: 850, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, boxShadow: active ? `0 0 14px ${color}22` : "none" } }, label);
+    return React.createElement("button", { onClick: onClick, style: { padding: "7px 12px", minHeight: 32, borderRadius: 999, border: `1px solid ${active ? color + "55" : UI.border}`, cursor: "pointer", background: active ? color + "26" : "rgba(255,255,255,0.045)", color: active ? color : C.muted, fontWeight: 850, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: active ? `0 0 14px ${color}22` : "none" } }, label);
+}
+function prettyLabel(label) {
+    const raw = String(label || "").replace(/^\/\/\s*/, "").trim();
+    return raw.toLowerCase().replace(/\w/g, ch => ch.toUpperCase()).replace(/Ios/g, "iOS").replace(/Apple/g, "Apple");
 }
 function SectionHeader({ icon, label, color }) {
-    return (React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 9, fontSize: 10, fontWeight: 850, letterSpacing: 2.4, color, margin: "18px 2px 10px" } },
-        React.createElement("span", { style: { opacity: 0.95 } }, icon),
-        React.createElement("span", null, label),
-        React.createElement("div", { style: { flex: 1, height: 1, background: `linear-gradient(90deg, ${color}55, transparent)` } })));
+    return (React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 760, letterSpacing: 0.2, color: C.text, margin: "18px 2px 8px" } },
+        React.createElement("span", { style: { color, opacity: 0.9, fontSize: 13 } }, icon),
+        React.createElement("span", null, prettyLabel(label)),
+        React.createElement("div", { style: { flex: 1, height: 1, background: "rgba(255,255,255,0.055)" } })));
 }
 function openPlannerImage(url) {
     if (url)
@@ -510,15 +514,15 @@ function EventViewPanel({ a, onBack, onEdit, onExport }) {
         return React.createElement("div", null);
     const d = new Date(a.date + "T12:00:00");
     return React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, borderLeft: `3px solid ${a.color}`, marginTop: 10, marginBottom: 14, boxShadow: `${UI.cardShadow}, 0 0 18px ${a.color}22` }) },
-        React.createElement("button", { onClick: onBack, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 12, padding: 0 } }, "← BACK"),
+        React.createElement("button", { onClick: onBack, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 12, padding: 0 } }, "← BACK"),
         React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
             React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
-                React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
-                a.categoryText && React.createElement("div", { style: { fontSize: 11, color: a.color, letterSpacing: 1, lineHeight: 1.6, fontWeight: 800 } }, "Category: ", a.categoryText),
-                (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` – ${a.endTime}` : "")),
-            React.createElement("button", { onClick: () => onEdit(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
-        onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
+                React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 0.2, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
+                a.categoryText && React.createElement("div", { style: { fontSize: 11, color: a.color, letterSpacing: 0.2, lineHeight: 1.6, fontWeight: 800 } }, "Category: ", a.categoryText),
+                (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 0.2, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` – ${a.endTime}` : "")),
+            React.createElement("button", { onClick: () => onEdit(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Edit")),
+        onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
                     getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
         React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
 }
@@ -563,19 +567,19 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     }
     const metaItems = [];
     if (!task.done)
-        metaItems.push(React.createElement("span", { key: "pri", style: { fontSize: 9, fontWeight: 700, color: isOverdue ? C.red : isToday ? C.green : p.color, letterSpacing: 2 } }, isOverdue ? "⚠ OVERDUE" : isToday ? "● TODAY" : `${p.icon} ${p.label}`));
+        metaItems.push(React.createElement("span", { key: "pri", style: { fontSize: 9, fontWeight: 700, color: isOverdue ? C.red : isToday ? C.green : p.color, letterSpacing: 0.4 } }, isOverdue ? "⚠ OVERDUE" : isToday ? "● TODAY" : `${p.icon} ${p.label}`));
     if (task.done)
-        metaItems.push(React.createElement("span", { key: "done", style: { fontSize: 9, fontWeight: 800, color: C.green, letterSpacing: 1 } }, "✓ DONE"));
+        metaItems.push(React.createElement("span", { key: "done", style: { fontSize: 9, fontWeight: 800, color: C.green, letterSpacing: 0.2 } }, "✓ DONE"));
     if (cat)
-        metaItems.push(React.createElement("span", { key: "cat", style: { fontSize: 9, fontWeight: 700, color: cat.color, background: cat.color + "18", padding: "1px 6px", borderRadius: 10, letterSpacing: 1 } }, cat.name));
+        metaItems.push(React.createElement("span", { key: "cat", style: { fontSize: 9, fontWeight: 700, color: cat.color, background: cat.color + "18", padding: "1px 6px", borderRadius: 10, letterSpacing: 0.2 } }, cat.name));
     if (task.dueDate && !task.done)
-        metaItems.push(React.createElement("span", { key: "date", style: { fontSize: 9, color: taskDateColor(task), letterSpacing: 1, fontWeight: 800 } }, "📅 ", formatBrDate(task.dueDate)));
+        metaItems.push(React.createElement("span", { key: "date", style: { fontSize: 9, color: taskDateColor(task), letterSpacing: 0.2, fontWeight: 800 } }, "📅 ", formatBrDate(task.dueDate)));
     if (task.dueTime && !task.done)
-        metaItems.push(React.createElement("span", { key: "time", style: { fontSize: 9, color: taskTimeColor(task), letterSpacing: 1, fontWeight: 800 } }, "⏰ ", task.dueTime));
+        metaItems.push(React.createElement("span", { key: "time", style: { fontSize: 9, color: taskTimeColor(task), letterSpacing: 0.2, fontWeight: 800 } }, "⏰ ", task.dueTime));
     if (((_b = task.recurrence) !== null && _b !== void 0 ? _b : "none") !== "none" && !task.done)
-        metaItems.push(React.createElement("span", { key: "rec", style: { fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 1 } }, recurLabel[task.recurrence]));
+        metaItems.push(React.createElement("span", { key: "rec", style: { fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 0.2 } }, recurLabel[task.recurrence]));
     if (subs.length > 0)
-        metaItems.push(React.createElement("span", { key: "subs", style: { fontSize: 9, color: subDone === subs.length ? C.green : C.muted, letterSpacing: 1 } }, "☑ ", subDone, "/", subs.length));
+        metaItems.push(React.createElement("span", { key: "subs", style: { fontSize: 9, color: subDone === subs.length ? C.green : C.muted, letterSpacing: 0.2 } }, "☑ ", subDone, "/", subs.length));
     if (hasExtra)
         metaItems.push(React.createElement("button", { key: "more", onClick: e => { e.stopPropagation(); setExpanded(v => !v); }, onPointerDown: stop, onPointerUp: stop, style: { border: "none", background: "transparent", padding: 0, margin: 0, cursor: "pointer", fontSize: 9, color: C.dim, fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲" : "▼"));
     const detailChildren = [];
@@ -601,18 +605,36 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
 
 function TodayTaskCard({ task, onToggle, onDelete, onMoveUp, onMoveDown, canMoveUp, canMoveDown }) {
     const [expanded, setExpanded] = useState(false);
+    const [actionMode, setActionMode] = useState(false);
+    const tapRef = useRef(null);
     const hasDesc = !!(task.description && task.description.trim());
-    return React.createElement("div", { style: cardSurface({ borderRadius: 16, padding: "14px 14px", marginBottom: 10, borderLeft: task.done ? `3px solid ${C.green}` : `3px solid ${C.amber}`, opacity: task.done ? 0.55 : 1 }) },
+    const stop = e => e.stopPropagation();
+    const actionBtn = (label, title, color, onClick, bg) => React.createElement("button", { title, onClick: e => { e.stopPropagation(); e.preventDefault(); onClick(); }, onPointerDown: stop, onPointerUp: stop, style: actionButtonSurface(color, bg) }, label);
+    function rememberTap(e) { tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }
+    function maybeOpenActions(e) {
+        const start = tapRef.current;
+        tapRef.current = null;
+        if (!start) return;
+        const moved = Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y);
+        if (moved <= 12 && Date.now() - start.t < 700) setActionMode(true);
+    }
+    const cardStyle = cardSurface({ borderRadius: 16, padding: "13px 14px", marginBottom: 8, borderLeft: task.done ? `3px solid ${C.green}` : `3px solid ${C.amber}`, opacity: task.done ? 0.55 : 1, cursor: "pointer" });
+    if (actionMode) {
+        return React.createElement("div", { style: { ...cardStyle, opacity: 1, minHeight: 62, display: "flex", alignItems: "center" } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%" } },
+                actionBtn(React.createElement(ActionIcon, { name: "return" }), "Return", C.red, () => setActionMode(false), "#FF444414"),
+                React.createElement("div", { style: { flex: 1, display: "flex", justifyContent: "flex-end", gap: 8 } },
+                    actionBtn("↑", "Move up", canMoveUp ? C.text : C.dim, () => canMoveUp && onMoveUp(), "rgba(255,255,255,0.045)"),
+                    actionBtn("↓", "Move down", canMoveDown ? C.text : C.dim, () => canMoveDown && onMoveDown(), "rgba(255,255,255,0.045)"),
+                    actionBtn(React.createElement(ActionIcon, { name: "delete" }), "Delete", C.red, () => { onDelete(task.id); setActionMode(false); }, "#FF444414"))));
+    }
+    return React.createElement("div", { style: cardStyle, onPointerDown: rememberTap, onPointerUp: maybeOpenActions },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
-            React.createElement("button", { onClick: () => onToggle(task.id), style: { width: 22, height: 22, borderRadius: 6, border: task.done ? "none" : `1px solid ${C.amber}66`, background: task.done ? C.green : "transparent", cursor: "pointer", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.bg0, fontWeight: 900 } }, task.done ? "✓" : ""),
-            React.createElement("div", { style: { flex: 1, minWidth: 0, cursor: hasDesc ? "pointer" : "default" }, onClick: () => hasDesc && setExpanded(!expanded) },
-                React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: task.done ? C.muted : C.text, textDecoration: task.done ? "line-through" : "none", lineHeight: 1.35 } }, task.title || "Untitled"),
-                hasDesc && React.createElement("div", { style: { fontSize: 9, color: C.dim, marginTop: 3, fontWeight: 800, letterSpacing: 1 } }, expanded ? "▲ DESCRIPTION" : "▼ DESCRIPTION")),
-            React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
-                React.createElement("button", { disabled: !canMoveUp, onClick: onMoveUp, title: "Move up", style: { background: C.bg3, border: "none", borderRadius: 6, width: 25, height: 25, cursor: canMoveUp ? "pointer" : "not-allowed", color: canMoveUp ? C.muted : C.dim, fontWeight: 900, opacity: canMoveUp ? 1 : 0.35 } }, "↑"),
-                React.createElement("button", { disabled: !canMoveDown, onClick: onMoveDown, title: "Move down", style: { background: C.bg3, border: "none", borderRadius: 6, width: 25, height: 25, cursor: canMoveDown ? "pointer" : "not-allowed", color: canMoveDown ? C.muted : C.dim, fontWeight: 900, opacity: canMoveDown ? 1 : 0.35 } }, "↓"),
-                React.createElement("button", { onClick: () => onDelete(task.id), style: { background: "#FF44441A", border: "none", borderRadius: 6, width: 25, height: 25, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 13 } }, "×"))),
-        expanded && hasDesc && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.muted, lineHeight: 1.6, whiteSpace: "pre-wrap" } }, task.description));
+            React.createElement("button", { onClick: e => { e.stopPropagation(); onToggle(task.id); }, onPointerDown: stop, onPointerUp: stop, style: { width: 22, height: 22, borderRadius: 7, border: task.done ? "none" : `1px solid ${C.amber}55`, background: task.done ? C.green : "transparent", cursor: "pointer", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.bg0, fontWeight: 900 } }, task.done ? "✓" : ""),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                React.createElement("div", { style: { fontSize: 14, fontWeight: 650, color: task.done ? C.muted : C.text, textDecoration: task.done ? "line-through" : "none", lineHeight: 1.35 } }, task.title || "Untitled"),
+                hasDesc && React.createElement("button", { onClick: e => { e.stopPropagation(); setExpanded(!expanded); }, onPointerDown: stop, onPointerUp: stop, style: { marginTop: 3, padding: 0, border: "none", background: "transparent", color: C.dim, fontSize: 10, fontWeight: 760, fontFamily: "inherit", cursor: "pointer" } }, expanded ? "Hide note" : "Show note"))),
+        expanded && hasDesc && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${UI.border}`, fontSize: 12, color: C.muted, lineHeight: 1.6, whiteSpace: "pre-wrap" } }, task.description));
 }
 
 function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
@@ -650,14 +672,14 @@ function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
     return (React.createElement("div", { style: cardStyle, onPointerDown: rememberTap, onPointerUp: maybeOpenActions },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
             React.createElement("div", { style: { background: appt.color + "18", borderRadius: 8, padding: "6px 8px", textAlign: "center", minWidth: 38, flexShrink: 0 } },
-                React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: appt.color, letterSpacing: 1 } }, MONTHS[d.getMonth()]),
+                React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: appt.color, letterSpacing: 0.2 } }, MONTHS[d.getMonth()]),
                 React.createElement("div", { style: { fontSize: 20, fontWeight: 900, color: appt.color, lineHeight: 1.1 } }, d.getDate())),
             React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, appt.title),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap", alignItems: "center" } },
-                    appt.time && React.createElement("span", { style: { fontSize: 10, color: C.muted, letterSpacing: 1 } }, appt.time + (appt.endTime ? `–${appt.endTime}` : "")),
-                    appt.categoryText && React.createElement("span", { style: { fontSize: 9, color: appt.color, background: appt.color + "18", fontWeight: 800, letterSpacing: 1, borderRadius: 10, padding: "1px 6px" } }, appt.categoryText),
-                    appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 1 } }, recurLabel[appt.recurrence]),
+                    appt.time && React.createElement("span", { style: { fontSize: 10, color: C.muted, letterSpacing: 0.2 } }, appt.time + (appt.endTime ? `–${appt.endTime}` : "")),
+                    appt.categoryText && React.createElement("span", { style: { fontSize: 9, color: appt.color, background: appt.color + "18", fontWeight: 800, letterSpacing: 0.2, borderRadius: 10, padding: "1px 6px" } }, appt.categoryText),
+                    appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 0.2 } }, recurLabel[appt.recurrence]),
                     hasExtra && React.createElement("button", { onClick: e => { e.stopPropagation(); setExpanded(v => !v); }, onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: { border: "none", background: "transparent", padding: 0, margin: 0, cursor: "pointer", fontSize: 9, color: C.dim, fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲ less" : "▼ more")))) ,
         expanded && hasExtra && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
             appt.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: apptImages.length ? 8 : 0 } }, appt.description),
@@ -676,11 +698,11 @@ function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, on
     return (React.createElement("div", { style: { marginTop: 14 } },
         React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
             React.createElement("div", null,
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 4 } }, "// DAY TIMELINE"),
-                React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: C.text, letterSpacing: 1.5 } }, date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }).toUpperCase())),
-            React.createElement("div", { style: { fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 1 } }, sorted.length, " EVENT", sorted.length === 1 ? "" : "S")),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 4 } }, "// DAY TIMELINE"),
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: C.text, letterSpacing: 0.3 } }, date.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }).toUpperCase())),
+            React.createElement("div", { style: { fontSize: 10, color: C.muted, fontWeight: 700, letterSpacing: 0.2 } }, sorted.length, " EVENT", sorted.length === 1 ? "" : "S")),
         noTime.length > 0 && React.createElement("div", { style: { marginBottom: 10 } },
-            React.createElement("div", { style: { fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 2, marginBottom: 6 } }, "NO TIME"),
+            React.createElement("div", { style: { fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 0.4, marginBottom: 6 } }, "NO TIME"),
             noTime.map(a => React.createElement(React.Fragment, { key: a.id }, React.createElement(ApptCard, { appt: a, onDelete: onDelete, onEdit: onEdit, onExport: onExport }), selectedApptId === a.id && React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit, onExport: onExport })))),
         timed.length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, noTime.length ? "" : "No timed events.")
             : React.createElement("div", { style: { position: "relative", minHeight: timelineHeight, borderLeft: `1px solid ${C.border}`, marginLeft: 50, paddingBottom: 20 } },
@@ -770,28 +792,39 @@ function medScheduleSummary(med) {
     return n === 1 ? "Once a day, no specific time" : n + " times a day, no specific time";
 }
 function MedicationCard({ med, medLogs, onToggleDose, onEdit, onDelete }) {
+    const [actionMode, setActionMode] = useState(false);
+    const tapRef = useRef(null);
     const doses = getMedDosesForDate(med, todayStr());
-    const done = doses.filter(d => medLogs && medLogs[d.key]).length;
-    const total = doses.length;
-    const color = med.color || C.green;
-    return React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, marginBottom: 10, border: `1px solid ${C.border}`, borderLeft: `3px solid ${color}` } },
-        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
+    const taken = doses.filter(d => medLogs[d.key]).length;
+    const stop = e => e.stopPropagation();
+    const actionBtn = (label, title, color, onClick, bg) => React.createElement("button", { title, onClick: e => { e.stopPropagation(); e.preventDefault(); onClick(); }, onPointerDown: stop, onPointerUp: stop, style: actionButtonSurface(color, bg) }, label);
+    function rememberTap(e) { tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }
+    function maybeOpenActions(e) {
+        const start = tapRef.current;
+        tapRef.current = null;
+        if (!start) return;
+        const moved = Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y);
+        if (moved <= 12 && Date.now() - start.t < 700) setActionMode(true);
+    }
+    const cardStyle = cardSurface({ borderRadius: 18, padding: 15, borderLeft: `3px solid ${med.color || C.green}`, marginBottom: 10, cursor: "pointer" });
+    if (actionMode) {
+        return React.createElement("div", { style: { ...cardStyle, minHeight: 62, display: "flex", alignItems: "center" } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%" } },
+                actionBtn(React.createElement(ActionIcon, { name: "return" }), "Return", C.red, () => setActionMode(false), "#FF444414"),
+                React.createElement("div", { style: { flex: 1, display: "flex", justifyContent: "flex-end", gap: 8 } },
+                    actionBtn(React.createElement(ActionIcon, { name: "edit" }), "Edit", C.text, () => { onEdit(med); setActionMode(false); }),
+                    actionBtn(React.createElement(ActionIcon, { name: "delete" }), "Delete", C.red, () => { onDelete(med.id); setActionMode(false); }, "#FF444414"))));
+    }
+    return React.createElement("div", { style: cardStyle, onPointerDown: rememberTap, onPointerUp: maybeOpenActions },
+        React.createElement("div", { style: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: doses.length ? 12 : 0 } },
             React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                React.createElement("div", { style: { fontSize: 15, fontWeight: 900, color: C.text, lineHeight: 1.25 } }, med.name || "Medication"),
-                React.createElement("div", { style: { fontSize: 10, color: color, fontWeight: 800, letterSpacing: 1, marginTop: 4 } }, medScheduleSummary(med)),
-                total > 0 && React.createElement("div", { style: { fontSize: 9, color: done === total ? C.green : C.muted, fontWeight: 800, letterSpacing: 1, marginTop: 4 } }, done, "/", total, " TAKEN TODAY")),
-            React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
-                React.createElement("button", { onClick: () => onEdit(med), title: "Edit", style: { background: UI.controlBg, border: `1px solid ${UI.border}`, borderRadius: 10, width: 38, height: 38, cursor: "pointer", color: C.text, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: UI.softShadow } }, React.createElement(ActionIcon, { name: "edit", size: 18 })),
-                React.createElement("button", { onClick: () => onDelete(med.id), title: "Delete", style: { background: "#FF44441A", border: `1px solid ${C.red}28`, borderRadius: 10, width: 38, height: 38, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: UI.softShadow } }, React.createElement(ActionIcon, { name: "delete", size: 18 })))),
-        med.notes && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.55, marginBottom: 10, whiteSpace: "pre-wrap" } }, med.notes),
-        doses.length ? React.createElement("div", { style: { display: "grid", gap: 7 } },
-            doses.map(dose => {
-                const checked = !!(medLogs && medLogs[dose.key]);
-                return React.createElement("button", { key: dose.key, onClick: () => onToggleDose(dose.key), style: { display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 10px", borderRadius: 10, border: checked ? `1px solid ${C.green}` : `1px solid ${C.border}`, background: checked ? C.green + "18" : C.bg3, cursor: "pointer", color: checked ? C.green : C.text, fontFamily: "inherit", textAlign: "left" } },
-                    React.createElement("span", { style: { width: 20, height: 20, borderRadius: 6, border: checked ? "none" : `1px solid ${C.muted}`, background: checked ? C.green : "transparent", color: C.bg0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, flexShrink: 0 } }, checked ? "✓" : ""),
-                    React.createElement("span", { style: { fontSize: 12, fontWeight: 800, letterSpacing: 0.5 } }, dose.label));
-            }))
-            : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "6px 0" } }, "No dose scheduled for today."));
+                React.createElement("div", { style: { fontSize: 16, fontWeight: 780, color: C.text, lineHeight: 1.25 } }, med.name || "Medication"),
+                React.createElement("div", { style: { fontSize: 12, color: C.muted, marginTop: 4, lineHeight: 1.4 } }, medScheduleSummary(med)),
+                med.notes && React.createElement("div", { style: { fontSize: 12, color: C.muted, marginTop: 8, lineHeight: 1.55, whiteSpace: "pre-wrap" } }, med.notes)),
+            React.createElement("div", { style: { fontSize: 12, color: taken === doses.length && doses.length ? C.green : C.muted, fontWeight: 760, whiteSpace: "nowrap" } }, taken, "/", doses.length, " taken")),
+        doses.length ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 7 } }, doses.map(d => React.createElement("button", { key: d.key, onClick: e => { e.stopPropagation(); onToggleDose(d.key); }, onPointerDown: stop, onPointerUp: stop, style: { display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "10px 11px", borderRadius: 12, border: `1px solid ${medLogs[d.key] ? C.green + "44" : UI.border}`, background: medLogs[d.key] ? C.green + "16" : "rgba(255,255,255,0.035)", cursor: "pointer", color: medLogs[d.key] ? C.green : C.text, fontFamily: "inherit", fontWeight: 720, textAlign: "left" } },
+            React.createElement("span", { style: { width: 22, height: 22, borderRadius: 7, border: medLogs[d.key] ? "none" : `1px solid ${C.dim}`, background: medLogs[d.key] ? C.green : "transparent", color: C.bg0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 } }, medLogs[d.key] ? "✓" : ""),
+            React.createElement("span", null, d.label)))) : React.createElement("div", { style: { fontSize: 12, color: C.dim, marginTop: 10 } }, "No dose scheduled today."));
 }
 function MedicationForm({ draft, setDraft, onSave, onCancel, editing }) {
     const type = draft.scheduleType || "daily-anytime";
@@ -805,10 +838,10 @@ function MedicationForm({ draft, setDraft, onSave, onCancel, editing }) {
             React.createElement("option", { value: "weekly" }, "Weekly"),
             React.createElement("option", { value: "interval" }, "Every X days")),
         type === "daily-anytime" && React.createElement("div", { style: { marginBottom: 8 } },
-            React.createElement("div", { style: { fontSize: 8, fontWeight: 800, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "TIMES PER DAY"),
+            React.createElement("div", { style: { fontSize: 8, fontWeight: 800, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "TIMES PER DAY"),
             React.createElement("input", { type: "number", min: 1, max: 12, value: draft.timesPerDay || 1, onChange: e => setDraft(d => ({ ...d, timesPerDay: e.target.value })), style: { ...inp } })),
         type === "daily-times" && React.createElement("div", { style: { marginBottom: 8 } },
-            React.createElement("div", { style: { fontSize: 8, fontWeight: 800, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "TIMES, SEPARATED BY COMMAS"),
+            React.createElement("div", { style: { fontSize: 8, fontWeight: 800, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "TIMES, SEPARATED BY COMMAS"),
             React.createElement("input", { placeholder: "09:00, 21:00", value: timeText, onChange: e => setDraft(d => ({ ...d, times: e.target.value })), style: { ...inp } })),
         type === "weekly" && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },
             React.createElement("select", { value: draft.weeklyDay ?? 0, onChange: e => setDraft(d => ({ ...d, weeklyDay: Number(e.target.value) })), style: { ...inp } },
@@ -820,8 +853,8 @@ function MedicationForm({ draft, setDraft, onSave, onCancel, editing }) {
             React.createElement("input", { type: "time", value: draft.intervalTime || "", onChange: e => setDraft(d => ({ ...d, intervalTime: e.target.value })), style: { ...inp, padding: "10px 6px", textAlign: "center" } })),
         React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setDraft(d => ({ ...d, color: c })), style: { width: 24, height: 24, borderRadius: 7, border: "none", background: c, cursor: "pointer", outline: (draft.color || C.green) === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: (draft.color || C.green) === c ? 1 : 0.45 } }))),
         React.createElement("div", { style: { display: "flex", gap: 8 } },
-            React.createElement("button", { onClick: onCancel, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 800, fontFamily: "inherit", fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-            React.createElement("button", { onClick: onSave, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontFamily: "inherit", fontSize: 11, letterSpacing: 1 } }, editing ? "SAVE MEDICATION" : "+ ADD MEDICATION")));
+            React.createElement("button", { onClick: onCancel, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 800, fontFamily: "inherit", fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
+            React.createElement("button", { onClick: onSave, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontFamily: "inherit", fontSize: 11, letterSpacing: 0.2 } }, editing ? "SAVE MEDICATION" : "Add Medication")));
 }
 
 function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixed }) {
@@ -844,14 +877,14 @@ function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixe
     return (React.createElement("div", { style: { position: fixed ? "fixed" : "absolute", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 300, display: "flex", alignItems: "flex-end" }, onClick: onClose },
         React.createElement("div", { style: cardSurface({ width: "100%", borderRadius: "28px 28px 0 0", padding: "22px 16px 38px", border: `1px solid ${UI.border}` }), onClick: e => e.stopPropagation() },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent } }, "// QUICK CAPTURE"),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent } }, "// QUICK CAPTURE"),
                 React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", fontWeight: 700 } }, "\u00D7")),
-            React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 12, background: C.bg3, borderRadius: 10, padding: 3 } }, [["task", "⊡ TASK"], ["note", "≡ NOTE"]].map(([k, l]) => (React.createElement("button", { key: k, onClick: () => setType(k), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 1.5, fontFamily: "inherit", background: type === k ? C.accent : "transparent", color: type === k ? C.bg0 : C.muted } }, l)))),
+            React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 12, background: C.bg3, borderRadius: 10, padding: 3 } }, [["task", "⊡ TASK"], ["note", "≡ NOTE"]].map(([k, l]) => (React.createElement("button", { key: k, onClick: () => setType(k), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 0.3, fontFamily: "inherit", background: type === k ? C.accent : "transparent", color: type === k ? C.bg0 : C.muted } }, l)))),
             React.createElement("input", { ref: ref, placeholder: type === "task" ? "What needs doing?" : "Note title...", value: text, onChange: e => setText(e.target.value), onKeyDown: e => e.key === "Enter" && save(), style: { ...inp, marginBottom: 10 } }),
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" } }, type === "task"
                 ? categories.map(c => React.createElement(CatPill, { key: c.id, label: c.name.toUpperCase(), active: catId === c.id, color: c.color, onClick: () => setCatId(c.id) }))
-                : folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name.toUpperCase(), active: folderId === f.id, color: f.color, onClick: () => setFolderId(f.id) }))),
-            React.createElement("button", { onClick: save, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 20px ${C.accent}55` } }, "CAPTURE"))));
+                : folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name, active: folderId === f.id, color: f.color, onClick: () => setFolderId(f.id) }))),
+            React.createElement("button", { onClick: save, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.2, boxShadow: `0 0 20px ${C.accent}55` } }, "CAPTURE"))));
 }
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
@@ -937,6 +970,7 @@ function App() {
     const [noteView, setNoteView] = useState("list");
     const [selectedNoteId, setSelectedNoteId] = useState(null);
     const [editingNoteId, setEditingNoteId] = useState(null);
+    const [activeNoteActionsId, setActiveNoteActionsId] = useState(null);
     const [showFolderMgr, setShowFolderMgr] = useState(false);
     const [folderDraft, setFolderDraft] = useState({ name: "", color: ACCENT_COLORS[0] });
     const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [] }); };
@@ -1691,7 +1725,7 @@ function App() {
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
             searchResults.tasks.length === 0 && searchResults.appts.length === 0 && searchResults.notes.length === 0 && (React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                 React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "\u2205"),
-                React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO RESULTS"))),
+                React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 0.4 } }, "No results"))),
             searchResults.tasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u22A1", label: "TASKS", color: C.accent }),
                 searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday })))),
@@ -1705,43 +1739,43 @@ function App() {
                     const folder = folders.find(f => f.id === n.folderId);
                     return (React.createElement("div", { key: n.id, onClick: () => { setTab("notes"); setNoteView("list"); setSearchOpen(false); setSearchQuery(""); openEditNote(n); }, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${(_a = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _a !== void 0 ? _a : C.amber}`, cursor: "pointer" } },
                         React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, n.title),
-                        React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 1, marginTop: 3 } }, (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
+                        React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 0.2, marginTop: 3 } }, (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
                         n.content && React.createElement("div", { style: { fontSize: 11, color: C.muted, marginTop: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, n.content)));
                 }))))),
         !searchOpen && tab === "today" && (React.createElement("div", null,
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, marginBottom: 14 }) },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 8 } }, "// TODAY"),
-                React.createElement("div", { style: { color: C.text, fontSize: 18, fontWeight: 800, letterSpacing: 2 } }, today.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }).toUpperCase()),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 8 } }, "Today"),
+                React.createElement("div", { style: { color: C.text, fontSize: 18, fontWeight: 800, letterSpacing: 0.4 } }, today.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" } },
-                    React.createElement("button", { onClick: () => { setTab("tasks"); setTaskSubTab("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "OPEN TASKS"),
-                    React.createElement("button", { onClick: () => setTab("calendar"), style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "OPEN CALENDAR"))),
+                    React.createElement("button", { onClick: () => { setTab("tasks"); setTaskSubTab("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Tasks"),
+                    React.createElement("button", { onClick: () => setTab("calendar"), style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Calendar"))),
             React.createElement(SectionHeader, { icon: "💊", label: "MEDS TODAY", color: todayMedDoses.length && medsTakenToday === todayMedDoses.length ? C.green : todayMedDoses.length ? C.amber : C.dim }),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, marginBottom: 14 }) },
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } },
                     React.createElement("div", null,
                         React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 4 } }, todayMedDoses.length ? `${medsTakenToday}/${todayMedDoses.length} doses taken` : "No meds scheduled"),
                         null),
-                    React.createElement("button", { onClick: () => setTab("meds"), style: { padding: "9px 12px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, whiteSpace: "nowrap" } }, "MEDS"))),
+                    React.createElement("button", { onClick: () => setTab("meds"), style: { padding: "9px 12px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, whiteSpace: "nowrap" } }, "Meds"))),
             React.createElement(SectionHeader, { icon: "↗", label: "SYNC STATUS", color: pendingAppleCount ? C.amber : C.green }),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, border: `1px solid ${pendingAppleCount ? C.amber + "55" : UI.border}`, marginBottom: 14 }) },
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 } }, pendingAppleCount ? `${pendingAppleCount} unsynced Apple change${pendingAppleCount === 1 ? "" : "s"}` : "Everything is synced"),
-                React.createElement("button", { onClick: () => setTab("sync"), style: { width: "100%", padding: 11, borderRadius: 10, border: "none", background: pendingAppleCount ? C.amber : C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, pendingAppleCount ? "GO TO SYNC" : "OPEN SYNC")))),
+                React.createElement("button", { onClick: () => setTab("sync"), style: { width: "100%", padding: 11, borderRadius: 10, border: "none", background: pendingAppleCount ? C.amber : C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, pendingAppleCount ? "Open Sync" : "Open Sync")))),
         !searchOpen && tab === "sync" && (React.createElement("div", null,
-            React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, border: `1px solid ${C.amber}55`, marginBottom: 14, boxShadow: `${UI.cardShadow}, ${UI.glowAmber}` }) },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.amber, marginBottom: 8 } }, "// SYNC & MAINTENANCE"),
+            React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, border: `1px solid ${pendingAppleCount ? C.amber + "32" : UI.border}`, marginBottom: 14, boxShadow: "none" }) },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 0.4, color: C.amber, marginBottom: 8 } }, "Sync & Backup"),
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 } }, pendingAppleCount ? `${pendingAppleCount} unsynced Apple change${pendingAppleCount === 1 ? "" : "s"}` : "Everything is synced"),
-                React.createElement("button", { onClick: exportPendingAppleChanges, disabled: pendingAppleCount === 0, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: pendingAppleCount ? C.amber : C.bg4, color: pendingAppleCount ? C.bg0 : C.dim, cursor: pendingAppleCount ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, "SYNC PENDING CHANGES TO APPLE", pendingAppleCount ? ` (${pendingAppleCount})` : ""),
-                React.createElement("button", { onClick: bulkExportPlannerToApple, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "FULL SYNC TASKS + EVENTS TO APPLE"),
+                React.createElement("button", { onClick: exportPendingAppleChanges, disabled: pendingAppleCount === 0, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: pendingAppleCount ? C.amber : C.bg4, color: pendingAppleCount ? C.bg0 : C.dim, cursor: pendingAppleCount ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 8 } }, "Sync Pending Changes", pendingAppleCount ? ` (${pendingAppleCount})` : ""),
+                React.createElement("button", { onClick: bulkExportPlannerToApple, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Full Apple Sync"),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8 } },
-                    React.createElement("button", { onClick: bulkExportTasksToApple, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "TASKS ONLY"),
-                    React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EVENTS ONLY"))),
+                    React.createElement("button", { onClick: bulkExportTasksToApple, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Tasks Only"),
+                    React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Events Only"))),
             React.createElement(SectionHeader, { icon: "↗", label: "PENDING CHANGES", color: pendingAppleCount ? C.amber : C.dim }),
             pendingAppleList.length ? pendingAppleList.map(ch => React.createElement("div", { key: ch.plannerId, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${ch.operation === "delete" ? C.red : C.amber}` } },
                 React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 5 } }, (ch.snapshot && ch.snapshot.title) || ch.plannerId),
-                React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", fontSize: 9, color: C.muted, fontWeight: 800, letterSpacing: 1 } },
-                    React.createElement("span", { style: { color: ch.type === "event" ? C.green : C.accent } }, String(ch.type || "").toUpperCase()),
-                    React.createElement("span", { style: { color: ch.operation === "delete" ? C.red : C.amber } }, String(ch.operation || "upsert").toUpperCase()),
-                    React.createElement("span", null, String(ch.reason || "changed").toUpperCase()))))
+                React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", fontSize: 9, color: C.muted, fontWeight: 800, letterSpacing: 0.2 } },
+                    React.createElement("span", { style: { color: ch.type === "event" ? C.green : C.accent } }, prettyLabel(ch.type || "")),
+                    React.createElement("span", { style: { color: ch.operation === "delete" ? C.red : C.amber } }, prettyLabel(ch.operation || "upsert")),
+                    React.createElement("span", null, prettyLabel(ch.reason || "changed")))))
                 : React.createElement("div", { style: cardSurface({ borderRadius: 16, padding: 16, color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 14 }) }, "No pending Apple changes."),
             React.createElement(SectionHeader, { icon: "▣", label: "BACKUP", color: C.green }),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16 }) },
@@ -1749,39 +1783,39 @@ function App() {
                             importBackupFile(f); if (e.target)
                             e.target.value = ""; } }),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
-                    React.createElement("button", { onClick: exportBackup, style: { flex: 1, padding: 11, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "EXPORT BACKUP"),
-                    React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "IMPORT")),
-                React.createElement("div", { style: { textAlign: "center", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.dim, fontWeight: 800, letterSpacing: 2 } }, "APP VERSION ", APP_VERSION)))),
+                    React.createElement("button", { onClick: exportBackup, style: { flex: 1, padding: 11, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Export Backup"),
+                    React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Import")),
+                React.createElement("div", { style: { textAlign: "center", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.dim, fontWeight: 800, letterSpacing: 0.4 } }, "App Version ", APP_VERSION)))),
         !searchOpen && tab === "tasks" && (React.createElement("div", null,
             React.createElement("div", { style: controlSurface({ display: "flex", gap: 6, marginBottom: 14, borderRadius: 16, padding: 4 }) },
-                [["today", "TODAY"], ["general", "GENERAL"]].map(([key, label]) => React.createElement("button", { key, onClick: () => setTaskSubTab(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 900, fontSize: 10, letterSpacing: 1, fontFamily: "inherit", background: taskSubTab === key ? `linear-gradient(135deg, ${C.accent}, ${C.accentD})` : "transparent", color: taskSubTab === key ? C.bg0 : C.muted, boxShadow: taskSubTab === key ? `0 0 16px ${C.accent}44` : "none" } }, label))),
+                [["today", "Today"], ["general", "General"]].map(([key, label]) => React.createElement("button", { key, onClick: () => setTaskSubTab(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 900, fontSize: 10, letterSpacing: 0.2, fontFamily: "inherit", background: taskSubTab === key ? `linear-gradient(135deg, ${C.accent}, ${C.accentD})` : "transparent", color: taskSubTab === key ? C.bg0 : C.muted, boxShadow: taskSubTab === key ? `0 0 8px ${C.accent}18` : "none" } }, label))),
             taskSubTab === "today" && (React.createElement("div", null,
                 React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } },
-                    todayTaskDateOptions.map((d, i) => React.createElement("button", { key: d, onClick: () => { setSelectedTodayTaskDate(d); setShowTodayTaskForm(false); }, style: { padding: "6px 10px", borderRadius: 10, border: selectedTodayTaskDate === d ? `1px solid ${C.amber}` : `1px solid ${C.border}`, background: selectedTodayTaskDate === d ? C.amber + "22" : C.bg2, color: selectedTodayTaskDate === d ? C.amber : C.muted, fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, cursor: "pointer" } }, d === todayStr() ? "TODAY" : weekdayLabel(d)))),
+                    todayTaskDateOptions.map((d, i) => React.createElement("button", { key: d, onClick: () => { setSelectedTodayTaskDate(d); setShowTodayTaskForm(false); }, style: { padding: "6px 10px", borderRadius: 10, border: selectedTodayTaskDate === d ? `1px solid ${C.amber}` : `1px solid ${C.border}`, background: selectedTodayTaskDate === d ? C.amber + "22" : C.bg2, color: selectedTodayTaskDate === d ? C.amber : C.muted, fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, cursor: "pointer" } }, d === todayStr() ? "TODAY" : weekdayLabel(d)))),
 
-                selectedTodayIsPast && selectedTodayUnfinished.length > 0 && React.createElement("button", { onClick: () => copyUnfinishedToToday(selectedTodayTaskDate), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.amber}, #FFE08A)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, "COPY UNFINISHED TO TODAY"),
-                selectedTodayCanEdit && React.createElement("button", { onClick: () => setShowTodayTaskForm(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.amber}, #FFE08A)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, showTodayTaskForm ? "CLOSE QUICK TASK" : "+ ADD LIST TASK"),
+                selectedTodayIsPast && selectedTodayUnfinished.length > 0 && React.createElement("button", { onClick: () => copyUnfinishedToToday(selectedTodayTaskDate), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.amber}, #FFE08A)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 12 } }, "Copy Unfinished to Today"),
+                selectedTodayCanEdit && React.createElement("button", { onClick: () => setShowTodayTaskForm(v => !v), style: { width: "100%", padding: "8px 10px", borderRadius: 12, border: `1px solid ${C.amber}33`, background: C.amber + "12", color: C.amber, cursor: "pointer", fontWeight: 760, fontSize: 12, fontFamily: "inherit", letterSpacing: 0.1, marginBottom: 12 } }, showTodayTaskForm ? "Close" : "+ New Task"),
                 showTodayTaskForm && selectedTodayCanEdit && React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
                     React.createElement("input", { autoFocus: true, placeholder: "Today task title", value: todayTaskDraft.title, onChange: e => setTodayTaskDraft(d => ({ ...d, title: e.target.value })), onKeyDown: e => e.key === "Enter" && saveTodayTask(), style: { ...inp, marginBottom: 8 } }),
                     React.createElement("textarea", { placeholder: "Description (optional)", value: todayTaskDraft.description, onChange: e => setTodayTaskDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
                     React.createElement("div", { style: { display: "flex", gap: 8 } },
-                        React.createElement("button", { onClick: () => { setTodayTaskDraft(emptyTodayTask()); setShowTodayTaskForm(false); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "CANCEL"),
-                        React.createElement("button", { onClick: saveTodayTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.amber}, #FFE08A)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "+ ADD"))),
+                        React.createElement("button", { onClick: () => { setTodayTaskDraft(emptyTodayTask()); setShowTodayTaskForm(false); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Cancel"),
+                        React.createElement("button", { onClick: saveTodayTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.amber}, #FFE08A)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Add"))),
                 selectedTodayTasks.length ? selectedTodayTasks.map((t, i) => React.createElement(TodayTaskCard, { key: t.id, task: t, onToggle: id => toggleTodayTask(id, selectedTodayTaskDate), onDelete: id => deleteTodayTask(id, selectedTodayTaskDate), onMoveUp: () => moveTodayTask(t.id, -1, selectedTodayTaskDate), onMoveDown: () => moveTodayTask(t.id, 1, selectedTodayTaskDate), canMoveUp: i > 0, canMoveDown: i < selectedTodayTasks.length - 1 }))
-                    : React.createElement("div", { style: { textAlign: "center", padding: "34px 0", color: C.muted } }, React.createElement("div", { style: { fontSize: 28, marginBottom: 10 } }, "[ ]"), React.createElement("div", { style: { fontSize: 11, fontWeight: 800, letterSpacing: 2 } }, selectedTodayTaskDate === todayStr() ? "TODAY IS EMPTY" : "NO TASKS ON THIS DAY")))),
+                    : React.createElement("div", { style: { textAlign: "center", padding: "34px 0", color: C.muted } }, React.createElement("div", { style: { fontSize: 24, marginBottom: 10 } }, "[ ]"), React.createElement("div", { style: { fontSize: 11, fontWeight: 800, letterSpacing: 0.4 } }, selectedTodayTaskDate === todayStr() ? "Today is empty" : "No tasks on this day")))),
             taskSubTab === "general" && (React.createElement(React.Fragment, null,
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
                 React.createElement(CatPill, { label: "ALL", active: taskCatFilter === "all", color: C.accent, onClick: () => setTaskCatFilter("all") }),
-                categories.map(cat => React.createElement(CatPill, { key: cat.id, label: cat.name.toUpperCase(), active: taskCatFilter === cat.id, color: cat.color, onClick: () => setTaskCatFilter(cat.id) })),
+                categories.map(cat => React.createElement(CatPill, { key: cat.id, label: cat.name, active: taskCatFilter === cat.id, color: cat.color, onClick: () => setTaskCatFilter(cat.id) })),
                 React.createElement("button", { onClick: () => setShowCatMgr(!showCatMgr), style: { padding: "4px 8px", borderRadius: 20, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.dim, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "\u2699")),
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
-                [["all", "ALL"], ["today", "TODAY"], ["overdue", "OVERDUE"], ["nodate", "NO DATE"], ["high", "HIGH"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setTaskViewFilter(key), style: { padding: "5px 9px", borderRadius: 10, border: taskViewFilter === key ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskViewFilter === key ? C.accent + "22" : C.bg2, color: taskViewFilter === key ? C.accent : C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit", letterSpacing: 1 } }, label))),
+                [["all", "ALL"], ["today", "TODAY"], ["overdue", "OVERDUE"], ["nodate", "NO DATE"], ["high", "HIGH"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setTaskViewFilter(key), style: { padding: "5px 9px", borderRadius: 10, border: taskViewFilter === key ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskViewFilter === key ? C.accent + "22" : C.bg2, color: taskViewFilter === key ? C.accent : C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit", letterSpacing: 0.2 } }, label))),
                 React.createElement("select", { value: taskSort, onChange: e => setTaskSort(e.target.value), style: { ...inp, width: "auto", padding: "5px 8px", fontSize: 9, color: C.muted } },
-                    React.createElement("option", { value: "priority" }, "SORT: PRIORITY"),
-                    React.createElement("option", { value: "due" }, "SORT: DUE DATE"),
-                    React.createElement("option", { value: "category" }, "SORT: CATEGORY"))),
+                    React.createElement("option", { value: "priority" }, "Sort: Priority"),
+                    React.createElement("option", { value: "due" }, "Sort: Due Date"),
+                    React.createElement("option", { value: "category" }, "Sort: Category"))),
             showCatMgr && (React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 14, marginBottom: 14 }) },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 10 } }, "// CATEGORIES"),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 10 } }, "// CATEGORIES"),
                 categories.map(cat => (React.createElement("div", { key: cat.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
                     React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
                         React.createElement("div", { style: { width: 10, height: 10, borderRadius: "50%", background: cat.color } }),
@@ -1808,7 +1842,7 @@ function App() {
                 relevantTasks.filter(t => t.done).map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday })))),
             relevantTasks.length === 0 && !overdueTasks.length && (React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                 React.createElement("div", { style: { fontSize: 36, marginBottom: 12 } }, "[ ]"),
-                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2 } }, "NO TASKS YET"))),
+                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 0.4 } }, "No tasks yet"))),
             showTaskForm ? (React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, marginTop: 10 }) },
                 React.createElement("input", { autoFocus: true, placeholder: "What needs to get done?", value: taskDraft.text, onChange: e => setTaskDraft(d => ({ ...d, text: e.target.value })), onKeyDown: e => e.key === "Enter" && saveTask(), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("textarea", { placeholder: "Description (optional)", value: taskDraft.description, onChange: e => setTaskDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
@@ -1816,47 +1850,47 @@ function App() {
                     React.createElement("input", { type: "date", value: taskDraft.dueDate, onChange: e => setTaskDraft(d => ({ ...d, dueDate: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12 } }),
                     React.createElement("input", { type: "time", value: taskDraft.dueTime || "", onChange: e => setTaskDraft(d => ({ ...d, dueTime: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12, padding: "10px 6px", textAlign: "center" } }),
                     React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, dueDate: "", dueTime: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "No date")),
-                React.createElement("button", { onClick: () => setTaskAlertOpen(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: taskDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: taskAlertOpen ? 8 : 10, textAlign: "left" } }, taskDraft.alertEnabled ? `ALERT ON: ${taskDraft.alertDate || "choose date"} ${taskDraft.alertTime || ""}` : "ALERT OFF  +"),
+                React.createElement("button", { onClick: () => setTaskAlertOpen(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: taskDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: taskAlertOpen ? 8 : 10, textAlign: "left" } }, taskDraft.alertEnabled ? `Alert On: ${taskDraft.alertDate || "choose date"} ${taskDraft.alertTime || ""}` : "Alert Off  +"),
                 taskAlertOpen && React.createElement("div", { style: { marginBottom: 10 } },
-                    React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, alertEnabled: !d.alertEnabled, alertDate: d.alertEnabled ? "" : d.alertDate, alertTime: d.alertEnabled ? "" : d.alertTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: taskDraft.alertEnabled ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.alertEnabled ? C.accent + "22" : C.bg3, color: taskDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, taskDraft.alertEnabled ? "ALERT ENABLED" : "ALERT DISABLED"),
+                    React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, alertEnabled: !d.alertEnabled, alertDate: d.alertEnabled ? "" : d.alertDate, alertTime: d.alertEnabled ? "" : d.alertTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: taskDraft.alertEnabled ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.alertEnabled ? C.accent + "22" : C.bg3, color: taskDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 8 } }, taskDraft.alertEnabled ? "Alert Enabled" : "Alert Disabled"),
                     taskDraft.alertEnabled && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", gap: 8, alignItems: "center" } },
                         React.createElement("input", { type: "date", value: taskDraft.alertDate || "", onChange: e => setTaskDraft(d => ({ ...d, alertDate: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12 } }),
                         React.createElement("input", { type: "time", value: taskDraft.alertTime || "", onChange: e => setTaskDraft(d => ({ ...d, alertTime: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12, padding: "10px 6px", textAlign: "center" } }),
                         React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, alertDate: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "Clear"))),
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
-                React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setTaskDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: taskDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: taskDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "REPEAT"),
+                React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setTaskDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: taskDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: taskDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "Once" : r.toUpperCase())))),
                 React.createElement(MultiImageUploadBtn, { value: taskDraft.imageUrls || getImages(taskDraft), onChange: urls => setTaskDraft(d => ({ ...d, ...makeImageData(urls) })) }),
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "PRIORITY"),
-                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, Object.entries(PRIORITY).map(([k, p]) => (React.createElement("button", { key: k, onClick: () => setTaskDraft(d => ({ ...d, priority: k })), style: { flex: 1, padding: "6px 0", borderRadius: 8, cursor: "pointer", border: taskDraft.priority === k ? `1px solid ${p.color}` : `1px solid ${C.border}`, background: taskDraft.priority === k ? p.bg : C.bg3, fontWeight: 700, fontSize: 10, fontFamily: "inherit", color: taskDraft.priority === k ? p.color : C.muted, letterSpacing: 1 } },
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "PRIORITY"),
+                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, Object.entries(PRIORITY).map(([k, p]) => (React.createElement("button", { key: k, onClick: () => setTaskDraft(d => ({ ...d, priority: k })), style: { flex: 1, padding: "6px 0", borderRadius: 8, cursor: "pointer", border: taskDraft.priority === k ? `1px solid ${p.color}` : `1px solid ${C.border}`, background: taskDraft.priority === k ? p.bg : C.bg3, fontWeight: 700, fontSize: 10, fontFamily: "inherit", color: taskDraft.priority === k ? p.color : C.muted, letterSpacing: 0.2 } },
                     p.icon,
                     " ",
                     p.label)))),
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "CATEGORY"),
-                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } }, categories.map(cat => React.createElement("button", { key: cat.id, onClick: () => setTaskDraft(d => ({ ...d, categoryId: cat.id })), style: { padding: "5px 10px", borderRadius: 20, border: taskDraft.categoryId === cat.id ? `1px solid ${cat.color}` : `1px solid ${C.border}`, background: taskDraft.categoryId === cat.id ? cat.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: taskDraft.categoryId === cat.id ? cat.color : C.muted, letterSpacing: 1 } }, cat.name.toUpperCase()))),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "CATEGORY"),
+                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } }, categories.map(cat => React.createElement("button", { key: cat.id, onClick: () => setTaskDraft(d => ({ ...d, categoryId: cat.id })), style: { padding: "5px 10px", borderRadius: 20, border: taskDraft.categoryId === cat.id ? `1px solid ${cat.color}` : `1px solid ${C.border}`, background: taskDraft.categoryId === cat.id ? cat.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: taskDraft.categoryId === cat.id ? cat.color : C.muted, letterSpacing: 0.2 } }, cat.name))),
                 taskDraft.subtasks.length > 0 && (React.createElement("div", { style: { marginBottom: 10 } },
-                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "SUBTASKS"),
+                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "SUBTASKS"),
                     taskDraft.subtasks.map((s, i) => (React.createElement("div", { key: s.id, style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } },
                         React.createElement("span", { style: { color: C.accent, fontWeight: 700, fontSize: 14, flexShrink: 0 } }, "\u00B7"),
                         React.createElement("input", { placeholder: `Step ${i + 1}`, value: s.text, onChange: e => updateSubtaskInDraft(s.id, e.target.value), style: { ...inp, flex: 1, padding: "6px 10px", fontSize: 12 } }),
                         React.createElement("button", { onClick: () => removeSubtaskFromDraft(s.id), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 16, fontWeight: 700 } }, "\u00D7")))))),
-                React.createElement("button", { onClick: addSubtaskToDraft, style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 12 } }, "+ ADD SUBTASK"),
+                React.createElement("button", { onClick: addSubtaskToDraft, style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 12 } }, "+ Add Subtask"),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
-                    React.createElement("button", { onClick: () => { setShowTaskForm(false); setEditingTaskId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                    React.createElement("button", { type: "button", onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingTaskId ? "SAVE CHANGES" : "+ ADD TASK")),
-                React.createElement("button", { type: "button", onClick: saveTaskAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingTaskId ? "SAVE + SEND TO APPLE" : "+ ADD TASK + SEND TO APPLE"))) : null,
-            React.createElement("button", { onClick: () => setShowDoneTasks(v => !v), style: { width: "100%", marginTop: 14, padding: 10, borderRadius: 12, border: `1px solid ${showDoneTasks ? C.green : C.border}`, background: showDoneTasks ? C.green + "22" : C.bg2, color: showDoneTasks ? C.green : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, showDoneTasks ? "HIDE DONE TASKS" : "SHOW DONE TASKS")
+                    React.createElement("button", { onClick: () => { setShowTaskForm(false); setEditingTaskId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
+                    React.createElement("button", { type: "button", onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, editingTaskId ? "Save Changes" : "Add Task")),
+                React.createElement("button", { type: "button", onClick: saveTaskAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, editingTaskId ? "Save + Send to Apple" : "+ ADD TASK + SEND TO APPLE"))) : null,
+            React.createElement("button", { onClick: () => setShowDoneTasks(v => !v), style: { width: "100%", marginTop: 14, padding: 10, borderRadius: 12, border: `1px solid ${showDoneTasks ? C.green : C.border}`, background: showDoneTasks ? C.green + "22" : C.bg2, color: showDoneTasks ? C.green : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, showDoneTasks ? "HIDE DONE TASKS" : "SHOW DONE TASKS")
             )))),
         !searchOpen && tab === "calendar" && (React.createElement("div", null,
-            React.createElement("div", { style: controlSurface({ display: "flex", gap: 4, marginBottom: 14, borderRadius: 16, padding: 4 }) }, [["grid", "⊞ MONTH"], ["week", "≡ WEEK"], ["list", "↓ LIST"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setCalView(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 1, fontFamily: "inherit", background: calView === key ? `linear-gradient(135deg, ${C.accent}, ${C.accentD})` : "transparent", color: calView === key ? C.bg0 : C.muted, boxShadow: calView === key ? `0 0 16px ${C.accent}44` : "none" } }, label)))),
+            React.createElement("div", { style: controlSurface({ display: "flex", gap: 4, marginBottom: 14, borderRadius: 16, padding: 4 }) }, [["grid", "⊞ MONTH"], ["week", "≡ WEEK"], ["list", "↓ LIST"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setCalView(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 0.2, fontFamily: "inherit", background: calView === key ? `linear-gradient(135deg, ${C.accent}, ${C.accentD})` : "transparent", color: calView === key ? C.bg0 : C.muted, boxShadow: calView === key ? `0 0 16px ${C.accent}44` : "none" } }, label)))),
             calView === "grid" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } },
                     React.createElement("button", { onClick: prevMonth, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u2039"),
-                    React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: C.text, letterSpacing: 3 } },
+                    React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: C.text, letterSpacing: 0.4 } },
                         MONTHS[calMonth],
                         " ",
                         calYear),
                     React.createElement("button", { onClick: nextMonth, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u203A")),
-                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 } }, DAYS_S.map((d, i) => React.createElement("div", { key: i, style: { textAlign: "center", fontSize: 9, fontWeight: 700, color: i === 0 || i === 6 ? C.muted : C.dim, letterSpacing: 1, padding: "4px 0" } }, d))),
+                React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", marginBottom: 6 } }, DAYS_S.map((d, i) => React.createElement("div", { key: i, style: { textAlign: "center", fontSize: 9, fontWeight: 700, color: i === 0 || i === 6 ? C.muted : C.dim, letterSpacing: 0.2, padding: "4px 0" } }, d))),
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4 } },
                     Array.from({ length: firstDay }).map((_, i) => React.createElement("div", { key: "e" + i })),
                     Array.from({ length: daysInMonth }).map((_, i) => {
@@ -1874,7 +1908,7 @@ function App() {
                             apptsByDay[day] && !isSel && (React.createElement("div", { style: { position: "absolute", bottom: 3, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 2 } }, (apptsByDay[day] || []).slice(0, 3).map((a, idx) => React.createElement("div", { key: idx, style: { width: 3, height: 3, borderRadius: "50%", background: a.color, boxShadow: `0 0 4px ${a.color}` } }))))));
                     })),
                 false && selDay && (React.createElement("div", { style: { marginTop: 16 } },
-                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 10 } },
+                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 10 } },
                         "// ",
                         MONTHS[calMonth],
                         " ",
@@ -1882,13 +1916,13 @@ function App() {
                     ((_a = apptsByDay[selDay]) !== null && _a !== void 0 ? _a : []).length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No events scheduled.")
                         : React.createElement(DayTimeline, { date: new Date(calYear, calMonth, selDay), appts: (_b = apptsByDay[selDay]) !== null && _b !== void 0 ? _b : [], onDelete: deleteAppt, onEdit: openViewAppt, onRealEdit: openEditAppt, onExport: exportEventToApple }))),
                 !selDay && (React.createElement("div", { style: { marginTop: 18 } },
-                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
+                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
                     appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })),
                     appts.length === 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No appointments added."))))),
             calView === "week" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 } },
                     React.createElement("button", { onClick: () => { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() - 7); setSelWeekDay(n); return n; }); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u2039"),
-                    React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: C.text, letterSpacing: 2 } },
+                    React.createElement("div", { style: { fontWeight: 700, fontSize: 12, color: C.text, letterSpacing: 0.4 } },
                         weekDays[0].toLocaleDateString([], { month: "short", day: "numeric" }),
                         " \u2013 ",
                         weekDays[6].toLocaleDateString([], { month: "short", day: "numeric" })),
@@ -1899,12 +1933,12 @@ function App() {
                     const isSel = (selWeekDay === null || selWeekDay === void 0 ? void 0 : selWeekDay.toDateString()) === wd.toDateString();
                     const dayAppts = (_a = weekApptsByDay[wd.toDateString()]) !== null && _a !== void 0 ? _a : [];
                     return (React.createElement("button", { key: i, onClick: () => setSelWeekDay(wd), style: { borderRadius: 12, border: "none", background: isSel ? C.accent : isToday ? C.bg4 : C.bg2, cursor: "pointer", fontFamily: "inherit", padding: "8px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, outline: isToday && !isSel ? `1px solid ${C.accent}66` : "none", boxShadow: isSel ? `0 0 12px ${C.accent}66` : "none" } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: isSel ? C.bg0 : C.dim, letterSpacing: 1 } }, DAYS_L[i].slice(0, 3)),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: isSel ? C.bg0 : C.dim, letterSpacing: 0.2 } }, DAYS_L[i].slice(0, 3)),
                         React.createElement("div", { style: { fontSize: 15, fontWeight: 800, color: isSel ? C.bg0 : isToday ? C.accent : C.text } }, wd.getDate()),
                         React.createElement("div", { style: { display: "flex", gap: 2 } }, dayAppts.slice(0, 3).map((a, idx) => React.createElement("div", { key: idx, style: { width: 4, height: 4, borderRadius: "50%", background: isSel ? C.bg0 : a.color } })))));
                 })),
                 selWeekDay && (React.createElement("div", null,
-                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 10 } },
+                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 10 } },
                         "// ",
                         DAYS_L[selWeekDay.getDay()],
                         " ",
@@ -1912,10 +1946,10 @@ function App() {
                     ((_c = weekApptsByDay[selWeekDay.toDateString()]) !== null && _c !== void 0 ? _c : []).length === 0
                         ? React.createElement(DayTimeline, { date: selWeekDay, appts: [], onDelete: deleteAppt, onEdit: openViewAppt, selectedApptId: selectedApptId, onBack: () => setSelectedApptId(null), onRealEdit: openEditAppt, onExport: exportEventToApple })
                         : React.createElement(DayTimeline, { date: selWeekDay, appts: (_d = weekApptsByDay[selWeekDay.toDateString()]) !== null && _d !== void 0 ? _d : [], onDelete: deleteAppt, onEdit: openViewAppt, selectedApptId: selectedApptId, onBack: () => setSelectedApptId(null), onRealEdit: openEditAppt, onExport: exportEventToApple }))),
-                !selWeekDay && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0", letterSpacing: 1 } }, "Tap a day to see its events."))),
+                !selWeekDay && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0", letterSpacing: 0.2 } }, "Tap a day to see its events."))),
             calView === "list" && (React.createElement("div", null,
                 React.createElement("div", { style: { marginBottom: 14 } },
-                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.muted, marginBottom: 8 } }, "// FILTER BY COLOR"),
+                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 8 } }, "// FILTER BY COLOR"),
                     React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" } },
                         ACCENT_COLORS.map(c => {
                             if (!appts.some(a => a.color === c))
@@ -1926,23 +1960,23 @@ function App() {
                         apptColorFilter.size > 0 && React.createElement("button", { onClick: () => setApptColorFilter(new Set()), style: { padding: "4px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "CLEAR"))),
                 filteredAppts.filter(a => (a.endDate || a.date || "") >= todayStr()).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onView: openViewAppt, onExport: exportEventToApple })),
                 filteredAppts.filter(a => (a.endDate || a.date || "") >= todayStr()).length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
-                    React.createElement("div", { style: { fontSize: 28, marginBottom: 10 } }, "[ ]"),
-                    React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 2 } }, "NO APPOINTMENTS")))),
+                    React.createElement("div", { style: { fontSize: 24, marginBottom: 10 } }, "[ ]"),
+                    React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 0.4 } }, "NO APPOINTMENTS")))),
             selectedApptId ? (() => {
                 const a = appts.find(x => x.id === selectedApptId);
                 if (!a)
                     return React.createElement("div", null);
                 const d = new Date(a.date + "T12:00:00");
                 return React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, borderLeft: `3px solid ${a.color}`, marginTop: 14 } },
-                    React.createElement("button", { onClick: () => setSelectedApptId(null), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 12, padding: 0 } }, "\u2190 BACK"),
+                    React.createElement("button", { onClick: () => setSelectedApptId(null), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 12, padding: 0 } }, "\u2190 BACK"),
                     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
                         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                             React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: a.color, lineHeight: 1.3, marginBottom: 5 } }, a.title),
-                            React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
-                            a.categoryText && React.createElement("div", { style: { fontSize: 11, color: a.color, letterSpacing: 1, lineHeight: 1.6, fontWeight: 800 } }, "Category: ", a.categoryText),
-                            (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 1, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
-                        React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
-                    React.createElement("button", { onClick: () => exportEventToApple(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
+                            React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 0.2, lineHeight: 1.6 } }, d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric", year: "numeric" })),
+                            a.categoryText && React.createElement("div", { style: { fontSize: 11, color: a.color, letterSpacing: 0.2, lineHeight: 1.6, fontWeight: 800 } }, "Category: ", a.categoryText),
+                            (a.time || a.endTime) && React.createElement("div", { style: { fontSize: 11, color: C.muted, letterSpacing: 0.2, lineHeight: 1.6 } }, a.time || "No start", a.endTime ? ` \u2013 ${a.endTime}` : "")),
+                        React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Edit")),
+                    React.createElement("button", { onClick: () => exportEventToApple(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, marginTop: 8 } }, "SEND TO APPLE CALENDAR"),
                     getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
                     React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
             })() : showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
@@ -1952,75 +1986,77 @@ function App() {
                 React.createElement(MultiImageUploadBtn, { value: apptDraft.imageUrls || getImages(apptDraft), onChange: urls => setApptDraft(d => ({ ...d, ...makeImageData(urls) })) }),
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },
                     React.createElement("div", { style: { minWidth: 0 } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "STARTS"),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "STARTS"),
                         React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value, endDate: d.endDate || e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } })),
                     React.createElement("div", { style: { minWidth: 0 } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "ENDS"),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "ENDS"),
                         React.createElement("input", { type: "date", value: apptDraft.endDate || apptDraft.date || "", onChange: e => setApptDraft(d => ({ ...d, endDate: e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } }))),
-                React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, allDay: !d.allDay, time: !d.allDay ? "" : d.time, endTime: !d.allDay ? "" : d.endTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: apptDraft.allDay ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.allDay ? C.accent + "22" : C.bg3, color: apptDraft.allDay ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, apptDraft.allDay ? "ALL-DAY: YES" : "ALL-DAY: NO"),
+                React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, allDay: !d.allDay, time: !d.allDay ? "" : d.time, endTime: !d.allDay ? "" : d.endTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: apptDraft.allDay ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.allDay ? C.accent + "22" : C.bg3, color: apptDraft.allDay ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 8 } }, apptDraft.allDay ? "ALL-DAY: YES" : "ALL-DAY: NO"),
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8, width: "100%", overflow: "hidden", opacity: apptDraft.allDay ? 0.35 : 1 } },
                     React.createElement("div", { style: { minWidth: 0, width: "100%" } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "START TIME"),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "START TIME"),
                         React.createElement("input", { type: "time", value: apptDraft.time, disabled: apptDraft.allDay, onChange: e => setApptDraft(d => ({ ...d, time: e.target.value, allDay: !e.target.value && !d.endTime })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } })),
                     React.createElement("div", { style: { minWidth: 0, width: "100%" } },
-                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 4 } }, "END TIME"),
+                        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "END TIME"),
                         React.createElement("input", { type: "time", value: apptDraft.endTime, disabled: apptDraft.allDay, onChange: e => setApptDraft(d => ({ ...d, endTime: e.target.value, allDay: !d.time && !e.target.value })), style: { ...inp, width: "100%", minWidth: 0, maxWidth: "100%", padding: "10px 6px", textAlign: "center" } }))),
-                React.createElement("button", { onClick: () => setApptAlertOpen(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: apptDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: apptAlertOpen ? 8 : 10, textAlign: "left" } }, apptDraft.alertEnabled ? `ALERT ON: ${apptDraft.alertDate || "choose date"} ${apptDraft.alertTime || ""}` : "ALERT OFF  +"),
+                React.createElement("button", { onClick: () => setApptAlertOpen(v => !v), style: { width: "100%", padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: apptDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: apptAlertOpen ? 8 : 10, textAlign: "left" } }, apptDraft.alertEnabled ? `ALERT ON: ${apptDraft.alertDate || "choose date"} ${apptDraft.alertTime || ""}` : "Alert Off  +"),
                 apptAlertOpen && React.createElement("div", { style: { marginBottom: 10 } },
-                    React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, alertEnabled: !d.alertEnabled, alertDate: d.alertEnabled ? "" : d.alertDate, alertTime: d.alertEnabled ? "" : d.alertTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: apptDraft.alertEnabled ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.alertEnabled ? C.accent + "22" : C.bg3, color: apptDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, apptDraft.alertEnabled ? "ALERT ENABLED" : "ALERT DISABLED"),
+                    React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, alertEnabled: !d.alertEnabled, alertDate: d.alertEnabled ? "" : d.alertDate, alertTime: d.alertEnabled ? "" : d.alertTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: apptDraft.alertEnabled ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.alertEnabled ? C.accent + "22" : C.bg3, color: apptDraft.alertEnabled ? C.accent : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 8 } }, apptDraft.alertEnabled ? "Alert Enabled" : "Alert Disabled"),
                     apptDraft.alertEnabled && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", gap: 8, alignItems: "center" } },
                         React.createElement("input", { type: "date", value: apptDraft.alertDate || "", onChange: e => setApptDraft(d => ({ ...d, alertDate: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12 } }),
                         React.createElement("input", { type: "time", value: apptDraft.alertTime || "", onChange: e => setApptDraft(d => ({ ...d, alertTime: e.target.value })), style: { ...inp, minWidth: 0, fontSize: 12, padding: "10px 6px", textAlign: "center" } }),
                         React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, alertDate: "", alertTime: "" })), style: { padding: "0 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 11, fontFamily: "inherit", whiteSpace: "nowrap" } }, "Clear"))),
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "REPEAT"),
-                React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setApptDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: apptDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: apptDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "ONCE" : r.toUpperCase())))),
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "CATEGORY"),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "REPEAT"),
+                React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, ["none", "daily", "weekly", "monthly"].map(r => (React.createElement("button", { key: r, onClick: () => setApptDraft(d => ({ ...d, recurrence: r })), style: { flex: 1, padding: "6px 0", borderRadius: 8, border: apptDraft.recurrence === r ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.recurrence === r ? C.accent + "22" : C.bg3, cursor: "pointer", fontWeight: 700, fontSize: 8, fontFamily: "inherit", color: apptDraft.recurrence === r ? C.accent : C.muted, letterSpacing: 0.5 } }, r === "none" ? "Once" : r.toUpperCase())))),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "CATEGORY"),
                 React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 } },
                     eventCategories.map(cat => React.createElement("button", { key: cat.id, onClick: () => setApptDraft(d => ({ ...d, categoryId: cat.id, categoryText: capitalizeLabel(cat.name), color: cat.color })), style: { minWidth: 74, padding: "8px 10px", borderRadius: 8, background: cat.color + "22", border: apptDraft.categoryId === cat.id ? `1px solid ${cat.color}` : `1px solid ${C.border}`, cursor: "pointer", outline: apptDraft.categoryId === cat.id ? `2px solid ${cat.color}` : "2px solid transparent", outlineOffset: 1, opacity: apptDraft.categoryId === cat.id ? 1 : 0.65, color: cat.color, fontWeight: 900, fontSize: 9, fontFamily: "inherit", letterSpacing: 0.5 } }, cat.name)),
                     React.createElement("button", { onClick: () => setShowEventCatMgr(v => !v), style: { minWidth: 74, padding: "8px 10px", borderRadius: 8, border: `1px dashed ${C.border}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 900, fontSize: 9, fontFamily: "inherit", letterSpacing: 0.5 } }, "+ CATEGORY")),
                 showEventCatMgr && React.createElement("div", { style: { background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 12, padding: 10, marginBottom: 12 } },
                     React.createElement("input", { placeholder: "New event category", value: eventCatDraft.name, onChange: e => setEventCatDraft(d => ({ ...d, name: e.target.value })), style: { ...inp, marginBottom: 8 } }),
                     React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 } }, ACCENT_COLORS.map(c => React.createElement("button", { key: c, onClick: () => setEventCatDraft(d => ({ ...d, color: c })), style: { width: 24, height: 24, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: eventCatDraft.color === c ? `2px solid ${c}` : "2px solid transparent", outlineOffset: 2, opacity: eventCatDraft.color === c ? 1 : 0.45 } }))),
-                    React.createElement("button", { onClick: addEventCategory, style: { width: "100%", padding: 9, borderRadius: 9, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, "ADD CATEGORY"),
+                    React.createElement("button", { onClick: addEventCategory, style: { width: "100%", padding: 9, borderRadius: 9, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 8 } }, "Add Category"),
                     eventCategories.map(cat => React.createElement("div", { key: cat.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "5px 0", borderTop: `1px solid ${C.border}` } },
-                        React.createElement("span", { style: { color: cat.color, fontSize: 10, fontWeight: 800, letterSpacing: 1 } }, cat.name),
+                        React.createElement("span", { style: { color: cat.color, fontSize: 10, fontWeight: 800, letterSpacing: 0.2 } }, cat.name),
                         !DEFAULT_EVENT_CATEGORIES.some(d => d.id === cat.id) && React.createElement("button", { onClick: () => deleteEventCategory(cat.id), style: { background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 12, fontWeight: 900 } }, "×")))),
                 React.createElement("div", { style: { display: "flex", gap: 8 } },
-                    React.createElement("button", { onClick: () => { setShowApptForm(false); setEditingApptId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                    React.createElement("button", { type: "button", onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, editingApptId ? "SAVE CHANGES" : "+ ADD EVENT")),
-                React.createElement("button", { type: "button", onClick: saveApptAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.accent}44` } }, editingApptId ? "SAVE + SEND TO APPLE" : "+ ADD EVENT + SEND TO APPLE"))) : null)),
+                    React.createElement("button", { onClick: () => { setShowApptForm(false); setEditingApptId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
+                    React.createElement("button", { type: "button", onClick: saveAppt, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, editingApptId ? "Save Changes" : "Add Event")),
+                React.createElement("button", { type: "button", onClick: saveApptAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, editingApptId ? "Save + Send to Apple" : "Add Event + Send to Apple"))) : null)),
         !searchOpen && tab === "meds" && (React.createElement("div", null,
             React.createElement(SectionHeader, { icon: "💊", label: "MEDICATION TRACKER", color: C.green }),
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.green, marginBottom: 6 } }, "// TODAY'S DOSES"),
-                React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: 1 } }, medsTakenToday, "/", todayMedDoses.length, " TAKEN"),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 0.4, color: C.green, marginBottom: 6 } }, "Today’s Doses"),
+                React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: 0.2 } }, medsTakenToday, "/", todayMedDoses.length, " TAKEN"),
                 null),
             showMedForm && React.createElement(MedicationForm, { draft: medDraft, setDraft: setMedDraft, onSave: saveMed, onCancel: () => { setShowMedForm(false); setEditingMedId(null); }, editing: editingMedId !== null }),
-            React.createElement("button", { onClick: openAddMed, style: { width: "100%", marginBottom: 12, padding: 11, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, "+ ADD MEDICATION"),
+            React.createElement("button", { onClick: openAddMed, style: { width: "100%", marginBottom: 12, padding: 9, borderRadius: 12, border: `1px solid ${C.green}33`, background: C.green + "12", color: C.green, cursor: "pointer", fontWeight: 760, fontSize: 12, fontFamily: "inherit", letterSpacing: 0.1, boxShadow: "none" } }, "Add Medication"),
             meds.length ? meds.map(m => React.createElement(MedicationCard, { key: m.id, med: m, medLogs: medLogs, onToggleDose: toggleMedDose, onEdit: openEditMed, onDelete: deleteMed }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "14px 0" } }, "No medications added yet."))),
         !searchOpen && tab === "notes" && (React.createElement("div", null, noteView === "view" ? (() => {
             const n = notes.find(x => x.id === selectedNoteId);
             const folder = n ? folders.find(f => f.id === n.folderId) : null;
-            if (!n) return React.createElement("div", null, React.createElement("button", { onClick: () => setNoteView("list"), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 14, padding: 0 } }, "\u2190 BACK"));
+            if (!n) return React.createElement("div", null, React.createElement("button", { onClick: () => setNoteView("list"), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 14, padding: 0 } }, "\u2190 BACK"));
             return React.createElement("div", null,
-                React.createElement("button", { onClick: () => { setNoteView("list"); setSelectedNoteId(null); }, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 14, padding: 0 } }, "\u2190 BACK"),
+                React.createElement("button", { onClick: () => { setNoteView("list"); setSelectedNoteId(null); }, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 14, padding: 0 } }, "\u2190 BACK"),
                 React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, borderLeft: `3px solid ${(folder && folder.color) || C.accent}` } },
                     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
                         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                             React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: C.text, lineHeight: 1.3, marginBottom: 4 } }, n.title),
-                            React.createElement("div", { style: { fontSize: 9, color: (folder && folder.color) || C.muted, fontWeight: 700, letterSpacing: 1 } }, n.type === "topic" ? "\u25c8 TOPIC" : "\u2261 TEXT", " \u00b7 ", (folder && folder.name) || "General")),
-                        React.createElement("button", { onClick: () => openEditNote(n), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EDIT")),
+                            React.createElement("div", { style: { fontSize: 9, color: (folder && folder.color) || C.muted, fontWeight: 700, letterSpacing: 0.2 } }, n.type === "topic" ? "\u25c8 TOPIC" : "\u2261 TEXT", " \u00b7 ", (folder && folder.name) || "General")),
+                        React.createElement("div", { style: { display: "flex", gap: 6, flexShrink: 0 } },
+                            React.createElement("button", { onClick: () => openEditNote(n), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 760, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Edit"),
+                            React.createElement("button", { onClick: () => { deleteNote(n.id); setNoteView("list"); setSelectedNoteId(null); }, style: { padding: "7px 10px", borderRadius: 9, border: `1px solid ${C.red}28`, background: "#FF444414", color: C.red, cursor: "pointer", fontWeight: 760, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Delete"))),
                     getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: () => openPlannerImage(getImages(n)[0]), style: { maxWidth: "100%", borderRadius: 10, maxHeight: 190, objectFit: "cover", display: "block", margin: "10px 0" } }),
                     n.type === "descriptive" ? React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 14 } }, n.content || "No content.")
                         : React.createElement("div", { style: { marginTop: 14 } }, (n.topics || []).length ? n.topics.map((t, i) => React.createElement("div", { key: i, style: { fontSize: 13, color: C.text, lineHeight: 1.6, marginBottom: 6 } }, "\u2022 ", t)) : React.createElement("div", { style: { fontSize: 13, color: C.muted } }, "No topics."))));
         })() : noteView === "list" ? (React.createElement(React.Fragment, null,
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
                 React.createElement(CatPill, { label: "ALL", active: selFolderId === null, color: C.accent, onClick: () => setSelFolderId(null) }),
-                folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name.toUpperCase(), active: selFolderId === f.id, color: f.color, onClick: () => setSelFolderId(selFolderId === f.id ? null : f.id) })),
+                folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name, active: selFolderId === f.id, color: f.color, onClick: () => setSelFolderId(selFolderId === f.id ? null : f.id) })),
                 React.createElement("button", { onClick: () => setShowFolderMgr(!showFolderMgr), style: { padding: "4px 8px", borderRadius: 20, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.dim, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "\u2699")),
             showFolderMgr && (React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 10 } }, "// FOLDERS"),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 10 } }, "// FOLDERS"),
                 folders.map(f => (React.createElement("div", { key: f.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
                     React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
                         React.createElement("div", { style: { width: 10, height: 10, borderRadius: "50%", background: f.color } }),
@@ -2037,7 +2073,7 @@ function App() {
                     React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
                         React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                             React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 4 } }, n.title),
-                            React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 1, marginBottom: 6 } },
+                            React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 0.2, marginBottom: 6 } },
                                 n.type === "topic" ? "◈ TOPIC" : "≡ TEXT",
                                 " \u00B7 ", (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
                             n.type === "descriptive" && n.content && React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, n.content),
@@ -2055,14 +2091,14 @@ function App() {
             }),
             visibleNotes.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                 React.createElement("div", { style: { fontSize: 32, marginBottom: 10 } }, "\u2261"),
-                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2 } }, "NO NOTES YET")))) : (React.createElement("div", null,
-            React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, marginBottom: 14, padding: 0 } }, "\u2190 BACK"),
+                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 0.4 } }, "No notes yet")))) : (React.createElement("div", null,
+            React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 14, padding: 0 } }, "\u2190 BACK"),
             React.createElement("input", { placeholder: "Note title", value: noteDraft.title, onChange: e => setNoteDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 10, fontSize: 15, fontWeight: 700 } }),
-            React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10, background: C.bg2, borderRadius: 10, padding: 3, border: `1px solid ${C.border}` } }, [["descriptive", "≡ DESCRIPTIVE"], ["topic", "◈ TOPICS"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setNoteDraft(d => ({ ...d, type: key })), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 1, fontFamily: "inherit", background: noteDraft.type === key ? C.amber : "transparent", color: noteDraft.type === key ? C.bg0 : C.muted } }, label)))),
-            React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 6 } }, "FOLDER"),
-            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" } }, folders.map(f => React.createElement("button", { key: f.id, onClick: () => setNoteDraft(d => ({ ...d, folderId: f.id })), style: { padding: "5px 10px", borderRadius: 20, border: noteDraft.folderId === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: noteDraft.folderId === f.id ? f.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: noteDraft.folderId === f.id ? f.color : C.muted, letterSpacing: 1 } }, f.name.toUpperCase()))),
+            React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10, background: C.bg2, borderRadius: 10, padding: 3, border: `1px solid ${C.border}` } }, [["descriptive", "≡ DESCRIPTIVE"], ["topic", "◈ TOPICS"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setNoteDraft(d => ({ ...d, type: key })), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 0.2, fontFamily: "inherit", background: noteDraft.type === key ? C.amber : "transparent", color: noteDraft.type === key ? C.bg0 : C.muted } }, label)))),
+            React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "FOLDER"),
+            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" } }, folders.map(f => React.createElement("button", { key: f.id, onClick: () => setNoteDraft(d => ({ ...d, folderId: f.id })), style: { padding: "5px 10px", borderRadius: 20, border: noteDraft.folderId === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: noteDraft.folderId === f.id ? f.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: noteDraft.folderId === f.id ? f.color : C.muted, letterSpacing: 0.2 } }, f.name))),
             noteDraft.type === "descriptive" ? (React.createElement("textarea", { placeholder: "Write your note here...", value: noteDraft.content, onChange: e => setNoteDraft(d => ({ ...d, content: e.target.value })), rows: 8, style: { ...inp, resize: "none", marginBottom: 10, lineHeight: 1.7 } })) : (React.createElement("div", { style: { marginBottom: 10 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 2, color: C.muted, marginBottom: 8 } }, "Press Enter to add \u00B7 Backspace on empty to remove"),
+                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 8 } }, "Press Enter to add \u00B7 Backspace on empty to remove"),
                 noteDraft.topics.map((topic, i) => (React.createElement("div", { key: i, style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } },
                     React.createElement("span", { style: { color: C.amber, fontWeight: 700, fontSize: 16, flexShrink: 0, lineHeight: 1 } }, "\u00B7"),
                     React.createElement("input", { placeholder: `Topic ${i + 1}`, value: topic, onChange: e => { const t = [...noteDraft.topics]; t[i] = e.target.value; setNoteDraft(d => ({ ...d, topics: t })); }, onKeyDown: e => {
@@ -2078,29 +2114,29 @@ function App() {
                             }
                         }, style: { ...inp, flex: 1, padding: "7px 10px", fontSize: 13 } }),
                     noteDraft.topics.length > 1 && React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: d.topics.filter((_, idx) => idx !== i) })), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 18, fontWeight: 700, lineHeight: 1 } }, "\u00D7")))),
-                React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: [...d.topics, ""] })), style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, marginTop: 4 } }, "+ ADD TOPIC"))),
+                React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: [...d.topics, ""] })), style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginTop: 4 } }, "+ Add Topic"))),
             React.createElement(MultiImageUploadBtn, { value: noteDraft.imageUrls || getImages(noteDraft), onChange: urls => setNoteDraft(d => ({ ...d, ...makeImageData(urls) })) }),
             React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 6 } },
-                React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 1 } }, "CANCEL"),
-                React.createElement("button", { onClick: saveNote, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.amber}44` } }, "SAVE NOTE"))))))));
+                React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
+                React.createElement("button", { onClick: saveNote, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, "Save Note"))))))));
     // ── Focus banner (shared) ───────────────────────────────────────────────────
-    const focusBanner = (React.createElement("div", { style: { background: C.bg2, border: `1px solid ${C.accent}33`, borderLeft: `3px solid ${C.accent}`, borderRadius: 14, padding: "12px 14px", cursor: "pointer", position: "relative", overflow: "hidden" }, onClick: !editMot ? startEditMot : undefined },
-        React.createElement("div", { style: { position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, ${C.accent}88, transparent)` } }),
-        React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 4 } }, "// FOCUS MODE"),
+    const compactFocus = tab !== "today";
+    const focusBanner = (React.createElement("div", { style: cardSurface({ border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}66` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 14 : 18, padding: compactFocus ? "8px 10px" : "13px 14px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }) , onClick: !editMot ? startEditMot : undefined },
         editMot ? (React.createElement("div", null,
-            React.createElement("textarea", { ref: motRef, value: motDraft, onChange: e => setMotDraft(e.target.value), onClick: e => e.stopPropagation(), rows: 2, style: { ...inp, resize: "none", marginBottom: 8, border: `1px solid ${C.accent}66`, fontSize: 11 } }),
-                React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 8 } }, ACCENT_COLORS.concat([C.text]).map(c => React.createElement("button", { key: c, onClick: e => { e.stopPropagation(); setFocusColor(c); }, style: { width: 20, height: 20, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: focusColor === c ? `2px solid white` : "1px solid transparent", outlineOffset: 1 } }))),
-            React.createElement("button", { onClick: e => { e.stopPropagation(); saveMot(); }, style: { background: C.accent, color: C.bg0, border: "none", borderRadius: 8, padding: "5px 12px", fontWeight: 700, fontSize: 10, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1 } }, "SAVE"))) : (React.createElement(React.Fragment, null,
-            React.createElement("div", { style: { color: focusColor, fontSize: 12, fontWeight: 600, lineHeight: 1.5 } }, motivation),
-            React.createElement("div", { style: { fontSize: 8, color: C.muted, marginTop: 4, letterSpacing: 1 } }, isWide ? "CLICK TO EDIT" : "TAP TO EDIT")))));
+            React.createElement("textarea", { ref: motRef, value: motDraft, onChange: e => setMotDraft(e.target.value), onClick: e => e.stopPropagation(), rows: compactFocus ? 1 : 2, style: { ...inp, resize: "none", marginBottom: 8, border: `1px solid ${C.accent}44`, fontSize: 11 } }),
+            React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 8 } }, ACCENT_COLORS.concat([C.text]).map(c => React.createElement("button", { key: c, onClick: e => { e.stopPropagation(); setFocusColor(c); }, style: { width: 20, height: 20, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: focusColor === c ? `2px solid white` : "1px solid transparent", outlineOffset: 1 } }))),
+            React.createElement("button", { onClick: e => { e.stopPropagation(); saveMot(); }, style: { background: C.accent, color: C.bg0, border: "none", borderRadius: 8, padding: "5px 12px", fontWeight: 700, fontSize: 10, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.1 } }, "Save"))) : (React.createElement("div", { style: { display: compactFocus ? "flex" : "block", alignItems: "center", gap: 8 } },
+            compactFocus && React.createElement("span", { style: { color: C.accent, fontSize: 11, fontWeight: 760, flexShrink: 0 } }, "Focus"),
+            !compactFocus && React.createElement("div", { style: { fontSize: 11, fontWeight: 760, letterSpacing: 0.1, color: C.accent, marginBottom: 5 } }, "Focus"),
+            React.createElement("div", { style: { color: focusColor, fontSize: compactFocus ? 11 : 13, fontWeight: 600, lineHeight: 1.45, whiteSpace: compactFocus ? "nowrap" : "normal", overflow: "hidden", textOverflow: "ellipsis" } }, motivation)))));
     // ── DESKTOP / TABLET LAYOUT (≥640px) ───────────────────────────────────────
     if (isWide) {
         return (React.createElement("div", { style: { display: "flex", height: "100vh", background: C.bg0, fontFamily: "'IBM Plex Mono','Courier New',monospace", overflow: "hidden" } },
             React.createElement("div", { style: { width: 260, background: C.bg1, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", padding: "20px 16px", overflowY: "auto", flexShrink: 0 } },
-                React.createElement("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: 4, color: C.accent, marginBottom: 18, paddingBottom: 14, borderBottom: `1px solid ${C.border}` } }, "// ADHD PLANNER"),
+                React.createElement("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: 0.6, color: C.accent, marginBottom: 18, paddingBottom: 14, borderBottom: `1px solid ${C.border}` } }, "Planner"),
                 React.createElement("div", { style: { marginBottom: 14 } }, focusBanner),
                 total > 0 && (React.createElement("div", { style: { padding: "8px 12px", background: C.bg2, borderRadius: 10, border: `1px solid ${C.border}`, marginBottom: 20 } },
-                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 5, letterSpacing: 2 } },
+                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 5, letterSpacing: 0.4 } },
                         React.createElement("span", null, "TASKS"),
                         React.createElement("span", { style: { color: pct === 100 ? C.green : C.accent } },
                             pct,
@@ -2110,15 +2146,15 @@ function App() {
                             total)),
                     React.createElement("div", { style: { height: 3, background: C.bg4, borderRadius: 3, overflow: "hidden" } },
                         React.createElement("div", { style: { height: "100%", borderRadius: 3, background: pct === 100 ? C.green : `linear-gradient(90deg, ${C.accent}, ${C.accentD})`, width: `${pct}%`, transition: "width 0.5s", boxShadow: `0 0 6px ${C.accent}88` } })))),
-                React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 3, color: C.dim, marginBottom: 8 } }, "NAVIGATE"),
-                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, [["today", "◉", "TODAY"], ["tasks", "⊡", "TASKS"], ["calendar", "📅", "CALENDAR"], ["meds", "💊", "MEDS"], ["notes", "≡", "NOTES"], ["sync", "↗", "SYNC"]].map(([key, icon, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { padding: "12px 14px", background: tab === key ? C.accent + "20" : "transparent", border: tab === key ? `1px solid ${C.accent}44` : `1px solid transparent`, borderRadius: 14, cursor: "pointer", fontWeight: 800, fontSize: 12, letterSpacing: 1.2, color: tab === key ? C.accent : C.muted, textAlign: "left", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", transition: "all 0.15s", boxShadow: tab === key ? `0 0 18px ${C.accent}18` : "none" } },
+                React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.dim, marginBottom: 8 } }, "Navigate"),
+                React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4 } }, [["today", "◉", "TODAY"], ["tasks", "⊡", "TASKS"], ["calendar", "📅", "CALENDAR"], ["meds", "💊", "Meds"], ["notes", "≡", "NOTES"], ["sync", "↗", "SYNC"]].map(([key, icon, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { padding: "12px 14px", background: tab === key ? C.accent + "20" : "transparent", border: tab === key ? `1px solid ${C.accent}44` : `1px solid transparent`, borderRadius: 14, cursor: "pointer", fontWeight: 800, fontSize: 12, letterSpacing: 0.2, color: tab === key ? C.accent : C.muted, textAlign: "left", fontFamily: "inherit", display: "flex", gap: 10, alignItems: "center", transition: "all 0.15s", boxShadow: tab === key ? `0 0 8px ${C.accent}12` : "none" } },
                     React.createElement("span", null, icon),
                     React.createElement("span", null, label))))),
                 React.createElement("div", { style: { flex: 1 } }),
-                React.createElement("button", { onClick: primaryAction, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: tab === "sync" ? C.amber : C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: tab === "sync" ? `0 0 20px ${C.amber}44` : `0 0 20px ${C.accent}44`, marginTop: 24 } }, tab === "sync" ? "SYNC PENDING" : "+ ADD")),
+                React.createElement("button", { onClick: primaryAction, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: tab === "sync" ? C.amber : C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.3, boxShadow: tab === "sync" ? `0 0 20px ${C.amber}44` : `0 0 20px ${C.accent}44`, marginTop: 24 } }, tab === "sync" ? "SYNC PENDING" : "Add")),
             React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } },
                 React.createElement("div", { style: { height: 56, borderBottom: `1px solid ${UI.border}`, display: "flex", alignItems: "center", padding: "0 32px", gap: 12, flexShrink: 0, background: UI.panelBg, boxShadow: "0 12px 30px rgba(0,0,0,0.12)", zIndex: 1 } },
-                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "today" ? "◉ TODAY" : tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : tab === "meds" ? "💊 MEDS" : tab === "sync" ? "↗ SYNC" : "≡ NOTES"),
+                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 0.4, color: C.text } }, tab === "today" ? "◉ Today" : tab === "tasks" ? "⊡ Tasks" : tab === "calendar" ? "📅 Calendar" : tab === "meds" ? "💊 Meds" : tab === "sync" ? "↗ Sync" : "≡ Notes"),
                     React.createElement("div", { style: { flex: 1 } }),
                     searchOpen && (React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, width: 300, padding: "7px 14px", border: `1px solid ${C.accent}66` } })),
                     React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" } }, "\uD83D\uDD0D")),
@@ -2126,20 +2162,20 @@ function App() {
     }
     // ── PHONE LAYOUT (<640px) ──────────────────────────────────────────────────
     return (React.createElement("div", { style: { height: "100%", minHeight: 0, width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden" } },
-        React.createElement("div", { style: cardSurface({ margin: "10px 14px 0", border: `1px solid ${C.accent}36`, borderLeft: `3px solid ${C.accent}`, borderRadius: 20, padding: "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: `${UI.cardShadow}, ${UI.glowBlue}` }), onClick: !editMot ? startEditMot : undefined },
-            React.createElement("div", { style: { position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, ${C.accent}88, transparent)` } }),
-            React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, textTransform: "uppercase", marginBottom: 4 } }, "// FOCUS MODE"),
+        React.createElement("div", { style: cardSurface({ margin: "8px 14px 0", border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}55` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 16 : 20, padding: compactFocus ? "8px 12px" : "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }), onClick: !editMot ? startEditMot : undefined },
+            React.createElement("div", { style: { display: compactFocus ? "none" : "block", position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, ${C.accent}44, transparent)` } }),
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 760, letterSpacing: 0.1, color: C.accent, marginBottom: compactFocus ? 0 : 5, display: compactFocus ? "inline" : "block", marginRight: compactFocus ? 8 : 0 } }, "Focus"),
             editMot ? (React.createElement("div", null,
                 React.createElement("textarea", { ref: motRef, value: motDraft, onChange: e => setMotDraft(e.target.value), onClick: e => e.stopPropagation(), rows: 2, style: { ...inp, resize: "none", marginBottom: 8, border: `1px solid ${C.accent}66` } }),
                 React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 8 } }, ACCENT_COLORS.concat([C.text]).map(c => React.createElement("button", { key: c, onClick: e => { e.stopPropagation(); setFocusColor(c); }, style: { width: 20, height: 20, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: focusColor === c ? `2px solid white` : "1px solid transparent", outlineOffset: 1 } }))),
-                React.createElement("button", { onClick: e => { e.stopPropagation(); saveMot(); }, style: { background: C.accent, color: C.bg0, border: "none", borderRadius: 8, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1 } }, "SAVE"))) : (React.createElement(React.Fragment, null,
-                React.createElement("div", { style: { color: focusColor, fontSize: 13, fontWeight: 600, lineHeight: 1.5 } }, motivation),
-                React.createElement("div", { style: { fontSize: 9, color: C.muted, marginTop: 4, letterSpacing: 1 } }, "TAP TO EDIT")))),
+                React.createElement("button", { onClick: e => { e.stopPropagation(); saveMot(); }, style: { background: C.accent, color: C.bg0, border: "none", borderRadius: 8, padding: "6px 14px", fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.2 } }, "Save"))) : (React.createElement(React.Fragment, null,
+                React.createElement("div", { style: { color: focusColor, fontSize: compactFocus ? 11 : 13, fontWeight: 600, lineHeight: 1.45, display: compactFocus ? "inline" : "block" } }, motivation),
+                React.createElement("div", { style: { display: compactFocus ? "none" : "block", fontSize: 9, color: C.muted, marginTop: 4, letterSpacing: 0.1 } }, "Tap to edit")))),
         React.createElement("div", { style: { margin: "10px 14px 0", display: "flex", gap: 8, alignItems: "center" } },
-            React.createElement("div", { style: controlSurface({ flex: 1, display: "flex", borderRadius: 18, padding: 4, gap: 4 }) }, [["today", "TODAY"], ["tasks", "TASKS"], ["calendar", "CAL"], ["meds", "MEDS"], ["notes", "NOTES"], ["sync", "SYNC"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { flex: 1, padding: "9px 0", minHeight: 36, background: tab === key && !searchOpen ? `linear-gradient(135deg, ${C.accent}, ${C.accentD})` : "transparent", border: "none", borderRadius: 14, cursor: "pointer", fontWeight: 850, fontSize: 9, letterSpacing: 1, color: tab === key && !searchOpen ? C.bg0 : C.muted, transition: "all 0.2s", fontFamily: "inherit", boxShadow: tab === key && !searchOpen ? `0 0 18px ${C.accent}55` : "none" } }, label)))),
+            React.createElement("div", { style: controlSurface({ flex: 1, display: "flex", borderRadius: 16, padding: 3, gap: 3 }) }, [["today", "TODAY"], ["tasks", "TASKS"], ["calendar", "CAL"], ["meds", "Meds"], ["notes", "NOTES"], ["sync", "SYNC"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => { setTab(key); setSearchOpen(false); setSearchQuery(""); }, style: { flex: 1, padding: "7px 0", minHeight: 32, background: tab === key && !searchOpen ? `linear-gradient(135deg, ${C.accent}, ${C.accentD})` : "transparent", border: "none", borderRadius: 14, cursor: "pointer", fontWeight: 760, fontSize: 9, letterSpacing: 0.2, color: tab === key && !searchOpen ? C.bg0 : C.muted, transition: "all 0.2s", fontFamily: "inherit", boxShadow: "none" } }, label)))),
             React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "\uD83D\uDD0D")),
         tab === "tasks" && taskProgressTotal > 0 && (React.createElement("div", { style: cardSurface({ margin: "10px 14px 0", padding: "10px 14px", borderRadius: 16 }) },
-            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 2 } },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 0.4 } },
                 React.createElement("span", null, taskProgressLabel),
                 React.createElement("span", { style: { color: taskProgressPct === 100 ? C.green : C.accent } },
                     taskProgressPct,
@@ -2152,7 +2188,7 @@ function App() {
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "14px 14px 106px" } }, tabContent),
-        React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 20, width: 56, height: 56, borderRadius: "50%", background: tab === "sync" ? `linear-gradient(135deg, ${C.amber}, #FFE08A)` : `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, border: `1px solid rgba(255,255,255,0.18)`, cursor: "pointer", fontSize: 28, color: C.bg0, fontWeight: 900, boxShadow: tab === "sync" ? `0 14px 34px ${C.amber}44, 0 0 26px ${C.amber}88` : `0 14px 34px ${C.accent}3A, 0 0 26px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+        React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? `linear-gradient(135deg, ${C.amber}, #FFE08A)` : `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, border: `1px solid rgba(255,255,255,0.18)`, cursor: "pointer", fontSize: 24, color: C.bg0, fontWeight: 900, boxShadow: tab === "sync" ? `0 8px 22px ${C.amber}22` : `0 8px 22px ${C.accent}22`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
             React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "\u00d7"),
             React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
