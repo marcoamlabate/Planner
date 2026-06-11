@@ -25,7 +25,23 @@ function controlSurface(extra = {}) {
     return { background: UI.controlBg, border: `1px solid ${UI.border}`, boxShadow: UI.softShadow, ...extra };
 }
 function actionButtonSurface(color, bg) {
-    return { width: 48, height: 44, borderRadius: 14, border: `1px solid ${color}26`, background: bg || UI.controlBg, color, cursor: "pointer", fontWeight: 900, fontSize: 16, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: UI.softShadow };
+    return { width: 52, height: 52, borderRadius: 16, border: `1px solid ${color}38`, background: bg || UI.controlBg, color, cursor: "pointer", fontWeight: 900, fontSize: 18, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: bg ? `0 10px 24px ${color}24, inset 0 1px 0 rgba(255,255,255,0.12)` : UI.softShadow, backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", lineHeight: 1 };
+}
+function ActionIcon({ name, size = 23 }) {
+    const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 3, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", focusable: "false" };
+    if (name === "return")
+        return React.createElement("svg", common, React.createElement("path", { d: "M9 7 4 12l5 5" }), React.createElement("path", { d: "M5 12h9a5 5 0 1 1 0 10h-2" }));
+    if (name === "today")
+        return React.createElement("svg", common, React.createElement("path", { d: "M6 6h12" }), React.createElement("path", { d: "M6 11h7" }), React.createElement("path", { d: "M6 16h5" }), React.createElement("path", { d: "M17 14v6" }), React.createElement("path", { d: "M14 17h6" }));
+    if (name === "sync" || name === "open")
+        return React.createElement("svg", common, React.createElement("path", { d: "M7 17 17 7" }), React.createElement("path", { d: "M10 7h7v7" }));
+    if (name === "edit")
+        return React.createElement("svg", { ...common, strokeWidth: 2.8 }, React.createElement("path", { d: "M4 20h4.5L19.2 9.3a2.4 2.4 0 0 0-3.4-3.4L5.1 16.6 4 20Z" }), React.createElement("path", { d: "M13.5 8.2l2.3 2.3" }));
+    if (name === "delete")
+        return React.createElement("svg", common, React.createElement("path", { d: "M7 7l10 10" }), React.createElement("path", { d: "M17 7 7 17" }));
+    if (name === "plus")
+        return React.createElement("svg", common, React.createElement("path", { d: "M12 5v14" }), React.createElement("path", { d: "M5 12h14" }));
+    return React.createElement("span", null, name);
 }
 const ACCENT_COLORS = ["#00C2FF", "#1EDF80", "#F5A623", "#FF4444", "#A78BFA", "#F97316", "#06B6D4", "#84CC16"];
 const PRIORITY = {
@@ -275,7 +291,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v48";
+const APP_VERSION = "v49";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -538,12 +554,12 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     if (actionMode) {
         return React.createElement("div", { style: { ...cardStyle, opacity: 1, minHeight: 64, display: "flex", alignItems: "center" } },
             React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" } },
-                actionBtn("↶", "Return", C.red, () => setActionMode(false), "#FF44441A"),
+                actionBtn(React.createElement(ActionIcon, { name: "return" }), "Return", C.red, () => setActionMode(false), "#FF44441A"),
                 React.createElement("div", { style: { flex: 1, display: "flex", justifyContent: "space-around", gap: 10 } },
-                    onCopyToToday ? actionBtn("→", "Copy to Today list", C.amber, () => { onCopyToToday(task); setActionMode(false); }) : null,
-                    onExport ? actionBtn("↗", "Sync to Apple", C.bg0, () => { onExport(task); setActionMode(false); }, C.amber) : null,
-                    actionBtn("✎", "Edit", C.muted, () => { onEdit(task); setActionMode(false); }),
-                    actionBtn("×", "Delete", C.red, () => { onDelete(task.id); setActionMode(false); }, "#FF44441A"))));
+                    onCopyToToday ? actionBtn(React.createElement(ActionIcon, { name: "today" }), "Send to Today tasks", C.amber, () => { onCopyToToday(task); setActionMode(false); }, "#FFBE3D1A") : null,
+                    onExport ? actionBtn(React.createElement(ActionIcon, { name: "sync" }), "Sync to Apple", C.bg0, () => { onExport(task); setActionMode(false); }, C.amber) : null,
+                    actionBtn(React.createElement(ActionIcon, { name: "edit" }), "Edit", C.text, () => { onEdit(task); setActionMode(false); }),
+                    actionBtn(React.createElement(ActionIcon, { name: "delete" }), "Delete", C.red, () => { onDelete(task.id); setActionMode(false); }, "#FF44441A"))));
     }
     const metaItems = [];
     if (!task.done)
@@ -624,12 +640,12 @@ function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
     if (actionMode) {
         return React.createElement("div", { style: { ...cardStyle, minHeight: 64, display: "flex", alignItems: "center" } },
             React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" } },
-                actionBtn("↶", "Return", C.red, () => setActionMode(false), "#FF44441A"),
+                actionBtn(React.createElement(ActionIcon, { name: "return" }), "Return", C.red, () => setActionMode(false), "#FF44441A"),
                 React.createElement("div", { style: { flex: 1, display: "flex", justifyContent: "space-around", gap: 10 } },
-                    onView && actionBtn("↗", "Open", C.accent, () => { onView(appt); setActionMode(false); }),
-                    onExport && actionBtn("↗", "Sync to Apple", C.bg0, () => { onExport(appt); setActionMode(false); }, C.amber),
-                    actionBtn("✎", "Edit", C.muted, () => { onEdit(appt); setActionMode(false); }),
-                    actionBtn("×", "Delete", C.red, () => { onDelete(appt.id); setActionMode(false); }, "#FF44441A"))));
+                    onView && actionBtn(React.createElement(ActionIcon, { name: "open" }), "Open", C.accent, () => { onView(appt); setActionMode(false); }, C.accent + "18"),
+                    onExport && actionBtn(React.createElement(ActionIcon, { name: "sync" }), "Sync to Apple", C.bg0, () => { onExport(appt); setActionMode(false); }, C.amber),
+                    actionBtn(React.createElement(ActionIcon, { name: "edit" }), "Edit", C.text, () => { onEdit(appt); setActionMode(false); }),
+                    actionBtn(React.createElement(ActionIcon, { name: "delete" }), "Delete", C.red, () => { onDelete(appt.id); setActionMode(false); }, "#FF44441A"))));
     }
     return (React.createElement("div", { style: cardStyle, onPointerDown: rememberTap, onPointerUp: maybeOpenActions },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
@@ -765,8 +781,8 @@ function MedicationCard({ med, medLogs, onToggleDose, onEdit, onDelete }) {
                 React.createElement("div", { style: { fontSize: 10, color: color, fontWeight: 800, letterSpacing: 1, marginTop: 4 } }, medScheduleSummary(med)),
                 total > 0 && React.createElement("div", { style: { fontSize: 9, color: done === total ? C.green : C.muted, fontWeight: 800, letterSpacing: 1, marginTop: 4 } }, done, "/", total, " TAKEN TODAY")),
             React.createElement("div", { style: { display: "flex", gap: 4, flexShrink: 0 } },
-                React.createElement("button", { onClick: () => onEdit(med), style: { background: C.bg3, border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: C.muted, fontWeight: 900 } }, "✎"),
-                React.createElement("button", { onClick: () => onDelete(med.id), style: { background: "#FF44441A", border: "none", borderRadius: 7, width: 28, height: 28, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 14 } }, "×"))),
+                React.createElement("button", { onClick: () => onEdit(med), title: "Edit", style: { background: UI.controlBg, border: `1px solid ${UI.border}`, borderRadius: 10, width: 38, height: 38, cursor: "pointer", color: C.text, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: UI.softShadow } }, React.createElement(ActionIcon, { name: "edit", size: 18 })),
+                React.createElement("button", { onClick: () => onDelete(med.id), title: "Delete", style: { background: "#FF44441A", border: `1px solid ${C.red}28`, borderRadius: 10, width: 38, height: 38, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: UI.softShadow } }, React.createElement(ActionIcon, { name: "delete", size: 18 })))),
         med.notes && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.55, marginBottom: 10, whiteSpace: "pre-wrap" } }, med.notes),
         doses.length ? React.createElement("div", { style: { display: "grid", gap: 7 } },
             doses.map(dose => {
@@ -1696,7 +1712,6 @@ function App() {
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, marginBottom: 14 }) },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 8 } }, "// TODAY"),
                 React.createElement("div", { style: { color: C.text, fontSize: 18, fontWeight: 800, letterSpacing: 2 } }, today.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }).toUpperCase()),
-                React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.5, marginTop: 8 } }, "Clean landing page. Tasks and events now stay in their own tabs."),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" } },
                     React.createElement("button", { onClick: () => { setTab("tasks"); setTaskSubTab("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "OPEN TASKS"),
                     React.createElement("button", { onClick: () => setTab("calendar"), style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "OPEN CALENDAR"))),
@@ -1705,18 +1720,16 @@ function App() {
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } },
                     React.createElement("div", null,
                         React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 4 } }, todayMedDoses.length ? `${medsTakenToday}/${todayMedDoses.length} doses taken` : "No meds scheduled"),
-                        React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5 } }, todayMedDoses.length ? "Open Meds to check or update today's doses." : "Medication tracking is quiet today.")),
+                        null),
                     React.createElement("button", { onClick: () => setTab("meds"), style: { padding: "9px 12px", borderRadius: 10, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, whiteSpace: "nowrap" } }, "MEDS"))),
             React.createElement(SectionHeader, { icon: "↗", label: "SYNC STATUS", color: pendingAppleCount ? C.amber : C.green }),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, border: `1px solid ${pendingAppleCount ? C.amber + "55" : UI.border}`, marginBottom: 14 }) },
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 } }, pendingAppleCount ? `${pendingAppleCount} unsynced Apple change${pendingAppleCount === 1 ? "" : "s"}` : "Everything is synced"),
-                React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5, marginBottom: 12 } }, "Apple sync, backup, import, and maintenance tools live in the Sync tab."),
                 React.createElement("button", { onClick: () => setTab("sync"), style: { width: "100%", padding: 11, borderRadius: 10, border: "none", background: pendingAppleCount ? C.amber : C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, pendingAppleCount ? "GO TO SYNC" : "OPEN SYNC")))),
         !searchOpen && tab === "sync" && (React.createElement("div", null,
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, border: `1px solid ${C.amber}55`, marginBottom: 14, boxShadow: `${UI.cardShadow}, ${UI.glowAmber}` }) },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.amber, marginBottom: 8 } }, "// SYNC & MAINTENANCE"),
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 } }, pendingAppleCount ? `${pendingAppleCount} unsynced Apple change${pendingAppleCount === 1 ? "" : "s"}` : "Everything is synced"),
-                React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5, marginBottom: 12 } }, "Apple sync and backup tools live here so the Today screen can stay calmer."),
                 React.createElement("button", { onClick: exportPendingAppleChanges, disabled: pendingAppleCount === 0, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: pendingAppleCount ? C.amber : C.bg4, color: pendingAppleCount ? C.bg0 : C.dim, cursor: pendingAppleCount ? "pointer" : "not-allowed", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, marginBottom: 8 } }, "SYNC PENDING CHANGES TO APPLE", pendingAppleCount ? ` (${pendingAppleCount})` : ""),
                 React.createElement("button", { onClick: bulkExportPlannerToApple, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${C.accent}, ${C.accentD})`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "FULL SYNC TASKS + EVENTS TO APPLE"),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8 } },
@@ -1981,7 +1994,7 @@ function App() {
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.green, marginBottom: 6 } }, "// TODAY'S DOSES"),
                 React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, letterSpacing: 1 } }, medsTakenToday, "/", todayMedDoses.length, " TAKEN"),
-                React.createElement("div", { style: { fontSize: 11, color: C.muted, marginTop: 4, lineHeight: 1.5 } }, "Check off each dose when you take it. Daily boxes reset automatically because each dose is tied to today’s date.")),
+                null),
             showMedForm && React.createElement(MedicationForm, { draft: medDraft, setDraft: setMedDraft, onSave: saveMed, onCancel: () => { setShowMedForm(false); setEditingMedId(null); }, editing: editingMedId !== null }),
             React.createElement("button", { onClick: openAddMed, style: { width: "100%", marginBottom: 12, padding: 11, borderRadius: 12, border: "none", background: `linear-gradient(135deg, ${C.green}, #A7F3D0)`, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1, boxShadow: `0 0 16px ${C.green}44` } }, "+ ADD MEDICATION"),
             meds.length ? meds.map(m => React.createElement(MedicationCard, { key: m.id, med: m, medLogs: medLogs, onToggleDose: toggleMedDose, onEdit: openEditMed, onDelete: deleteMed }))
