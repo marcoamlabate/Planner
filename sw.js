@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v50-apple-like-cleanup';
+const CACHE_NAME = 'adhd-planner-v51-sober-full-height';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
