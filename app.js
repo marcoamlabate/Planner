@@ -252,7 +252,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v46";
+const APP_VERSION = "v47";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -1673,40 +1673,22 @@ function App() {
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, marginBottom: 8 } }, "// TODAY"),
                 React.createElement("div", { style: { color: C.text, fontSize: 18, fontWeight: 800, letterSpacing: 2 } }, today.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }).toUpperCase()),
+                React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.5, marginTop: 8 } }, "Clean landing page. Tasks and events now stay in their own tabs."),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" } },
-                    React.createElement(CatPill, { label: `${todayTasks.length} OPEN TASKS`, active: true, color: todayTasks.length ? C.accent : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("all"); } }),
-                    React.createElement(CatPill, { label: `${todayAppts.length} EVENTS`, active: true, color: todayAppts.length ? C.green : C.dim, onClick: () => setTab("calendar") }),
-                    React.createElement(CatPill, { label: `${medsTakenToday}/${todayMedDoses.length} MEDS`, active: true, color: todayMedDoses.length && medsTakenToday === todayMedDoses.length ? C.green : todayMedDoses.length ? C.amber : C.dim, onClick: () => setTab("meds") }),
-                    React.createElement(CatPill, { label: `${tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr()).length} OVERDUE`, active: true, color: tasks.some(t => !t.done && t.dueDate && t.dueDate < todayStr()) ? C.red : C.dim, onClick: () => { setTab("tasks"); setTaskViewFilter("overdue"); } }))),
-            React.createElement("div", { style: { background: `linear-gradient(135deg, ${C.accent}18, ${C.bg2})`, borderRadius: 16, padding: 14, border: `1px solid ${C.accent}22`, marginBottom: 14 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.accent, marginBottom: 8 } }, "// NOW / NEXT"),
-                dashboardNowTask ? React.createElement("div", { style: { marginBottom: 10 } },
-                    React.createElement("div", { style: { fontSize: 11, color: C.muted, fontWeight: 800, letterSpacing: 1, marginBottom: 5 } }, "BEST NEXT MOVE"),
-                    React.createElement(TaskCard, { key: "dashboard-now-" + dashboardNowTask.id, task: dashboardNowTask, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openTaskForTodayDashboard, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday }))
-                    : React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 10 } }, "Nothing urgent. Pick one small task or plan today."),
-                React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-                    React.createElement("button", { onClick: () => { setTab("tasks"); setTaskSubTab("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "PLAN TODAY"),
-                    React.createElement("button", { onClick: () => setTab("sync"), style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${pendingAppleCount ? C.amber + "66" : C.border}`, background: pendingAppleCount ? C.amber + "22" : C.bg3, color: pendingAppleCount ? C.amber : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, pendingAppleCount ? `SYNC (${pendingAppleCount})` : "SYNC OK"))),
-            React.createElement(SectionHeader, { icon: "\u22A1", label: "TODAY'S TASKS", color: C.accent }),
-            todayTasks.length ? todayTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: task => { setTab("tasks"); openEditTask(task); }, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple }))
-                : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No open tasks."),
-            React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "TODAY'S EVENTS", color: C.green }),
-            todayAppts.length ? todayAppts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: appt => { setTab("calendar"); openEditAppt(appt); }, onExport: exportEventToApple }))
-                : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "8px 0 16px" } }, "No events today."),
-            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}` } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.green, marginBottom: 10 } }, "// BACKUP"),
-                React.createElement("input", { ref: importRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: e => { var _a; const f = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0]; if (f)
-                        importBackupFile(f); if (e.target)
-                        e.target.value = ""; } }),
-                React.createElement("div", { style: { display: "flex", gap: 8 } },
-                    React.createElement("button", { onClick: exportBackup, style: { flex: 1, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "EXPORT"),
-                    React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "IMPORT")),
-                React.createElement("button", { onClick: bulkExportPlannerToApple, style: { width: "100%", marginTop: 10, padding: 11, borderRadius: 10, border: "none", background: C.accent, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "SYNC TASKS + EVENTS TO APPLE"),
-                React.createElement("button", { onClick: exportPendingAppleChanges, style: { width: "100%", marginTop: 8, padding: 11, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, "SYNC PENDING CHANGES TO APPLE", pendingAppleCount ? ` (${pendingAppleCount})` : ""),
-                React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8 } },
-                    React.createElement("button", { onClick: bulkExportTasksToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "TASKS"),
-                    React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 9, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "EVENTS"))),
-            React.createElement("div", { style: { textAlign: "center", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.dim, fontWeight: 800, letterSpacing: 2 } }, "APP VERSION ", APP_VERSION))),
+                    React.createElement("button", { onClick: () => { setTab("tasks"); setTaskSubTab("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "OPEN TASKS"),
+                    React.createElement("button", { onClick: () => setTab("calendar"), style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1 } }, "OPEN CALENDAR"))),
+            React.createElement(SectionHeader, { icon: "💊", label: "MEDS TODAY", color: todayMedDoses.length && medsTakenToday === todayMedDoses.length ? C.green : todayMedDoses.length ? C.amber : C.dim }),
+            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginBottom: 14 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } },
+                    React.createElement("div", null,
+                        React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 4 } }, todayMedDoses.length ? `${medsTakenToday}/${todayMedDoses.length} doses taken` : "No meds scheduled"),
+                        React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5 } }, todayMedDoses.length ? "Open Meds to check or update today's doses." : "Medication tracking is quiet today.")),
+                    React.createElement("button", { onClick: () => setTab("meds"), style: { padding: "9px 12px", borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 1, whiteSpace: "nowrap" } }, "MEDS"))),
+            React.createElement(SectionHeader, { icon: "↗", label: "SYNC STATUS", color: pendingAppleCount ? C.amber : C.green }),
+            React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${pendingAppleCount ? C.amber + "44" : C.border}`, marginBottom: 14 } },
+                React.createElement("div", { style: { fontSize: 18, fontWeight: 900, color: C.text, marginBottom: 6 } }, pendingAppleCount ? `${pendingAppleCount} unsynced Apple change${pendingAppleCount === 1 ? "" : "s"}` : "Everything is synced"),
+                React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5, marginBottom: 12 } }, "Apple sync, backup, import, and maintenance tools live in the Sync tab."),
+                React.createElement("button", { onClick: () => setTab("sync"), style: { width: "100%", padding: 11, borderRadius: 10, border: "none", background: pendingAppleCount ? C.amber : C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 1 } }, pendingAppleCount ? "GO TO SYNC" : "OPEN SYNC")))),
         !searchOpen && tab === "sync" && (React.createElement("div", null,
             React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.amber}44`, marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 800, letterSpacing: 3, color: C.amber, marginBottom: 8 } }, "// SYNC & MAINTENANCE"),
@@ -2097,7 +2079,7 @@ function App() {
                     React.createElement("span", null, icon),
                     React.createElement("span", null, label))))),
                 React.createElement("div", { style: { flex: 1 } }),
-                React.createElement("button", { onClick: primaryAction, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: `0 0 20px ${C.accent}44`, marginTop: 24 } }, tab === "sync" ? "SYNC PENDING" : "+ ADD")),
+                React.createElement("button", { onClick: primaryAction, style: { width: "100%", padding: "11px 0", borderRadius: 12, border: "none", background: tab === "sync" ? C.amber : C.accent, color: C.bg0, fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit", letterSpacing: 1.5, boxShadow: tab === "sync" ? `0 0 20px ${C.amber}44` : `0 0 20px ${C.accent}44`, marginTop: 24 } }, tab === "sync" ? "SYNC PENDING" : "+ ADD")),
             React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" } },
                 React.createElement("div", { style: { height: 52, borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", padding: "0 32px", gap: 12, flexShrink: 0, background: C.bg1 } },
                     React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 2, color: C.text } }, tab === "today" ? "◉ TODAY" : tab === "tasks" ? "⊡ TASKS" : tab === "calendar" ? "📅 CALENDAR" : tab === "meds" ? "💊 MEDS" : tab === "sync" ? "↗ SYNC" : "≡ NOTES"),
@@ -2134,7 +2116,7 @@ function App() {
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "12px 16px 100px" } }, tabContent),
-        React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+        React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 28, right: 20, width: 50, height: 50, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: "none", cursor: "pointer", fontSize: 26, color: C.bg0, fontWeight: 700, boxShadow: tab === "sync" ? `0 0 24px ${C.amber}88` : `0 0 24px ${C.accent}88`, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
             React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "\u00d7"),
             React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
