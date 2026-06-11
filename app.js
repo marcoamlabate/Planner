@@ -8,7 +8,7 @@ const C = {
 const UI = {
     font: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif",
     mono: "'SF Mono', ui-monospace, monospace",
-    appBg: "linear-gradient(180deg,#0D1420 0%,#080D14 100%)",
+    appBg: "#080D14",
     panelBg: "rgba(13,20,32,0.88)",
     cardBg: "rgba(255,255,255,0.045)",
     controlBg: "rgba(255,255,255,0.055)",
@@ -293,7 +293,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v51";
+const APP_VERSION = "v52";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -2088,9 +2088,8 @@ function App() {
                                     "+",
                                     n.topics.length - 2,
                                     " more"))),
-                        React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 } },
-                            getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: () => openPlannerImage(getImages(n)[0]), style: { width: 46, height: 46, borderRadius: 8, objectFit: "cover" } }),
-                            React.createElement("button", { onClick: e => { e.stopPropagation(); deleteNote(n.id); }, style: { background: C.red + "14", border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 700, fontSize: 13 } }, "\u00D7")))));
+                        getImages(n)[0] && React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 } },
+                            React.createElement("img", { src: getImages(n)[0], alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(getImages(n)[0]); }, style: { width: 46, height: 46, borderRadius: 8, objectFit: "cover" } })))));
             }),
             visibleNotes.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
                 React.createElement("div", { style: { fontSize: 32, marginBottom: 10 } }, "\u2261"),
@@ -2123,7 +2122,7 @@ function App() {
                 React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
                 React.createElement("button", { onClick: saveNote, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, "Save Note"))))))));
     // ── Focus banner (shared) ───────────────────────────────────────────────────
-    const compactFocus = tab !== "today";
+    const compactFocus = false;
     const focusBanner = (React.createElement("div", { style: cardSurface({ border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}66` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 14 : 18, padding: compactFocus ? "8px 10px" : "13px 14px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }) , onClick: !editMot ? startEditMot : undefined },
         editMot ? (React.createElement("div", null,
             React.createElement("textarea", { ref: motRef, value: motDraft, onChange: e => setMotDraft(e.target.value), onClick: e => e.stopPropagation(), rows: compactFocus ? 1 : 2, style: { ...inp, resize: "none", marginBottom: 8, border: `1px solid ${C.accent}44`, fontSize: 11 } }),
@@ -2134,10 +2133,10 @@ function App() {
             React.createElement("div", { style: { color: focusColor, fontSize: compactFocus ? 11 : 13, fontWeight: 600, lineHeight: 1.45, whiteSpace: compactFocus ? "nowrap" : "normal", overflow: "hidden", textOverflow: "ellipsis" } }, motivation)))));
     // ── DESKTOP / TABLET LAYOUT (≥640px) ───────────────────────────────────────
     if (isWide) {
-        return (React.createElement("div", { style: { display: "flex", height: "100dvh", minHeight: "100dvh", background: UI.appBg, fontFamily: UI.font, overflow: "hidden" } },
+        return (React.createElement("div", { style: { display: "flex", height: "100dvh", minHeight: "100dvh", width: "100%", background: UI.appBg, fontFamily: UI.font, overflow: "hidden" } },
             React.createElement("div", { style: { width: 260, background: C.bg1, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", padding: "20px 16px", overflowY: "auto", flexShrink: 0 } },
                 React.createElement("div", { style: { fontSize: 10, fontWeight: 700, letterSpacing: 0.6, color: C.accent, marginBottom: 18, paddingBottom: 14, borderBottom: `1px solid ${C.border}` } }, "Planner"),
-                React.createElement("div", { style: { marginBottom: 14 } }, focusBanner),
+                tab === "today" && React.createElement("div", { style: { marginBottom: 14 } }, focusBanner),
                 total > 0 && (React.createElement("div", { style: { padding: "8px 12px", background: C.bg2, borderRadius: 10, border: `1px solid ${C.border}`, marginBottom: 20 } },
                     React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 5, letterSpacing: 0.4 } },
                         React.createElement("span", null, "TASKS"),
@@ -2164,8 +2163,8 @@ function App() {
                 React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "30px 40px 44px", background: UI.appBg } }, tabContent))));
     }
     // ── PHONE LAYOUT (<640px) ──────────────────────────────────────────────────
-    return (React.createElement("div", { style: { height: "100%", minHeight: "100%", width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden" } },
-        React.createElement("div", { style: cardSurface({ margin: "8px 14px 0", border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}55` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 16 : 20, padding: compactFocus ? "8px 12px" : "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }), onClick: !editMot ? startEditMot : undefined },
+    return (React.createElement("div", { style: { minHeight: "100dvh", height: "100dvh", width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden" } },
+        tab === "today" && React.createElement("div", { style: cardSurface({ margin: "8px 14px 0", border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}55` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 16 : 20, padding: compactFocus ? "8px 12px" : "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }), onClick: !editMot ? startEditMot : undefined },
             React.createElement("div", { style: { display: compactFocus ? "none" : "block", position: "absolute", top: 0, left: 0, right: 0, height: 1, background: UI.border } }),
             React.createElement("div", { style: { fontSize: 11, fontWeight: 760, letterSpacing: 0.1, color: C.accent, marginBottom: compactFocus ? 0 : 5, display: compactFocus ? "inline" : "block", marginRight: compactFocus ? 8 : 0 } }, "Focus"),
             editMot ? (React.createElement("div", null,
