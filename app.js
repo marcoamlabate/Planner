@@ -295,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v61";
+const APP_VERSION = "v62";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -1044,14 +1044,21 @@ function App() {
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
     const [folders, setFolders] = useLocalState("adhd3_folders", DEFAULT_FOLDERS);
     const [selFolderId, setSelFolderId] = useState(null);
-    const [noteView, setNoteView] = useState("list");
+    const [noteView, setNoteView] = useState("overview");
     const [selectedNoteId, setSelectedNoteId] = useState(null);
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [activeNoteActionsId, setActiveNoteActionsId] = useState(null);
+    const [noteReturnTarget, setNoteReturnTarget] = useState({ view: "overview", folderId: null });
     const [showFolderMgr, setShowFolderMgr] = useState(false);
     const [folderDraft, setFolderDraft] = useState({ name: "", color: ACCENT_COLORS[0] });
     const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [] }); };
     const [noteDraft, setNoteDraft] = useState(emptyNote);
+    useEffect(() => {
+        setFolders(p => {
+            const list = Array.isArray(p) ? p : [];
+            return list.some(f => f.id === "general") ? list : [{ ...DEFAULT_FOLDERS[0] }, ...list];
+        });
+    }, []);
     function startEditMot() { setMotDraft(motivation); setEditMot(true); setTimeout(() => { var _a; return (_a = motRef.current) === null || _a === void 0 ? void 0 : _a.focus(); }, 50); }
     function saveMot() { if (motDraft.trim())
         setMotivation(motDraft.trim()); setEditMot(false); }
@@ -1073,7 +1080,7 @@ function App() {
         };
     }, [searchQuery, rawTasks, rawAppts, notes]);
     function getNavigationSnapshot() {
-        return { tab, taskSubTab, selectedTodayTaskDate, calView, selectedApptId, showApptForm, editingApptId, noteView, selectedNoteId, editingNoteId };
+        return { tab, taskSubTab, selectedTodayTaskDate, calView, selectedApptId, showApptForm, editingApptId, noteView, selFolderId, selectedNoteId, editingNoteId, noteReturnTarget };
     }
     function restoreNavigationSnapshot(snapshot) {
         const snap = snapshot || { tab: "today" };
@@ -1084,9 +1091,11 @@ function App() {
         setSelectedApptId(snap.selectedApptId || null);
         setShowApptForm(!!snap.showApptForm);
         setEditingApptId(snap.editingApptId ?? null);
-        setNoteView(snap.noteView || "list");
+        setNoteView(snap.noteView || "overview");
+        setSelFolderId(snap.selFolderId ?? null);
         setSelectedNoteId(snap.selectedNoteId || null);
         setEditingNoteId(snap.editingNoteId ?? null);
+        setNoteReturnTarget(snap.noteReturnTarget || { view: "overview", folderId: null });
     }
     function openSearch() {
         if (!searchOpen) setSearchReturnSnapshot(getNavigationSnapshot());
@@ -1114,7 +1123,8 @@ function App() {
             return;
         }
         if (tab === "notes") {
-            if (noteView !== "list") { setNoteView("list"); setSelectedNoteId(null); setEditingNoteId(null); return; }
+            if (noteView === "view") { returnFromNotePage(); return; }
+            if (noteView === "list") { openNotesOverview(); return; }
             setTab("today");
             return;
         }
@@ -1718,41 +1728,154 @@ function App() {
         setPendingAppleChanges({});
     }
 
-    function openAddNote() { setNoteDraft(emptyNote()); setEditingNoteId(null); setSelectedNoteId(null); setNoteView("edit"); }
-    function openEditNote(n) {
-        setNoteDraft({ title: n.title, type: n.type, content: n.content, topics: n.topics.length ? n.topics : [""], folderId: n.folderId, imageUrl: getImages(n)[0] || "", imageUrls: getImages(n) });
-        setEditingNoteId(n.id);
-        setNoteView("edit");
+    function generalFolderId() {
+        return folders.some(f => f.id === "general") ? "general" : ((folders[0] && folders[0].id) || "general");
     }
-    function openViewNote(n) {
-        setSelectedNoteId(n.id);
+    function normalizeNoteTitle(title) {
+        return String(title || "").trim() || "Untitled";
+    }
+    function noteSortTime(n) {
+        return Number(n && (n.updatedAt || n.createdAt || 0)) || 0;
+    }
+    function noteToDraft(n) {
+        const imgs = getImages(n || {});
+        return {
+            title: (n && n.title) || "",
+            type: (n && n.type) || "descriptive",
+            content: (n && n.content) || "",
+            topics: Array.isArray(n && n.topics) && n.topics.length ? n.topics : [""],
+            folderId: (n && n.folderId) || generalFolderId(),
+            imageUrl: imgs[0] || "",
+            imageUrls: imgs,
+            updatedAt: (n && n.updatedAt) || (n && n.createdAt) || Date.now()
+        };
+    }
+    function openNotesOverview() {
+        setNoteView("overview");
+        setSelFolderId(null);
+        setSelectedNoteId(null);
+        setEditingNoteId(null);
+        setActiveNoteActionsId(null);
+    }
+    function openNotesList(folderId) {
+        setSelFolderId(folderId || null);
+        setNoteView("list");
+        setSelectedNoteId(null);
+        setEditingNoteId(null);
+        setActiveNoteActionsId(null);
+        setShowFolderMgr(false);
+    }
+    function openAddNote(folderId) {
+        const now = Date.now();
+        const targetFolder = folderId || (noteView === "list" && selFolderId ? selFolderId : generalFolderId());
+        const rec = { id: now, createdAt: now, updatedAt: now, title: "", type: "descriptive", content: "", topics: [], folderId: targetFolder, imageUrl: "", imageUrls: [] };
+        setNotes(p => [rec, ...p]);
+        setNoteDraft(noteToDraft(rec));
+        setEditingNoteId(rec.id);
+        setSelectedNoteId(rec.id);
+        setNoteReturnTarget({ view: "list", folderId: noteView === "list" ? selFolderId : targetFolder });
         setNoteView("view");
     }
+    function openEditNote(n) {
+        openViewNote(n);
+    }
+    function openViewNote(n, returnTarget) {
+        if (!n) return;
+        setNoteDraft(noteToDraft(n));
+        setEditingNoteId(n.id);
+        setSelectedNoteId(n.id);
+        setNoteReturnTarget(returnTarget || { view: noteView === "list" ? "list" : "overview", folderId: selFolderId });
+        setActiveNoteActionsId(null);
+        setNoteView("view");
+    }
+    function returnFromNotePage() {
+        const target = noteReturnTarget || { view: "overview", folderId: null };
+        setSelectedNoteId(null);
+        setEditingNoteId(null);
+        setActiveNoteActionsId(null);
+        if (target.view === "list") {
+            setSelFolderId(target.folderId || null);
+            setNoteView("list");
+        }
+        else {
+            openNotesOverview();
+        }
+    }
+    function updateOpenNote(patch) {
+        const id = selectedNoteId || editingNoteId;
+        if (!id) return;
+        const updatedAt = Date.now();
+        setNoteDraft(d => ({ ...d, ...patch, updatedAt }));
+        setNotes(p => p.map(n => n.id === id ? { ...n, ...patch, updatedAt } : n));
+    }
+    function updateOpenNoteTopic(index, value) {
+        const topics = [...(noteDraft.topics || [""])];
+        topics[index] = value;
+        updateOpenNote({ topics });
+    }
+    function addOpenNoteTopic(index) {
+        const topics = [...(noteDraft.topics || [""])];
+        topics.splice(index + 1, 0, "");
+        updateOpenNote({ topics });
+    }
+    function removeOpenNoteTopic(index) {
+        const topics = (noteDraft.topics || [""]).filter((_, i) => i !== index);
+        updateOpenNote({ topics: topics.length ? topics : [""] });
+    }
+    function buildNoteShareText(n) {
+        if (!n) return "";
+        const title = normalizeNoteTitle(n.title);
+        if ((n.type || "descriptive") === "topic") {
+            const bullets = (n.topics || []).filter(t => String(t || "").trim()).map(t => "• " + String(t).trim()).join("\n");
+            return bullets ? `${title}\n\n${bullets}` : title;
+        }
+        const body = String(n.content || "").trim();
+        return body ? `${title}\n\n${body}` : title;
+    }
+    async function shareNote(n) {
+        const text = buildNoteShareText(n);
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: normalizeNoteTitle(n.title), text });
+                return;
+            }
+            throw new Error("share unavailable");
+        }
+        catch (err) {
+            try {
+                await navigator.clipboard.writeText(text);
+                window.alert("Note copied");
+            }
+            catch (copyErr) {
+                window.alert(text);
+            }
+        }
+    }
     function saveNote() {
-        if (!noteDraft.title.trim())
-            return;
         const now = Date.now();
-        const rec = { ...noteDraft, topics: noteDraft.topics.filter(t => t.trim()) };
+        const rec = { ...noteDraft, title: normalizeNoteTitle(noteDraft.title), topics: (noteDraft.topics || []).filter(t => String(t || "").trim()), updatedAt: now };
         if (editingNoteId !== null)
             setNotes(p => p.map(n => n.id === editingNoteId ? { ...n, ...rec } : n));
         else
-            setNotes(p => [...p, { id: now, createdAt: now, ...rec }]);
+            setNotes(p => [{ id: now, createdAt: now, ...rec }, ...p]);
         setNoteView("list");
         setEditingNoteId(null);
     }
-    function deleteNote(id) { setNotes(p => p.filter(n => n.id !== id)); }
+    function deleteNote(id) {
+        setNotes(p => p.filter(n => n.id !== id));
+        if (selectedNoteId === id || editingNoteId === id) returnFromNotePage();
+    }
     function addFolder() {
-        if (!folderDraft.name.trim())
-            return;
-        setFolders(p => [...p, { id: Date.now().toString(), name: folderDraft.name.trim(), color: folderDraft.color }]);
+        if (!folderDraft.name.trim()) return;
+        const id = "folder-" + Date.now();
+        setFolders(p => [...p, { id, name: folderDraft.name.trim(), color: folderDraft.color }]);
         setFolderDraft({ name: "", color: ACCENT_COLORS[0] });
     }
     function deleteFolder(id) {
-        var _a, _b;
-        const remaining = folders.filter(f => f.id !== id);
-        const fallback = (_b = (_a = remaining[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general";
+        if (id === "general") return;
         setFolders(p => p.filter(f => f.id !== id));
-        setNotes(p => p.map(n => n.folderId === id ? { ...n, folderId: fallback } : n));
+        setNotes(p => p.map(n => n.folderId === id ? { ...n, folderId: generalFolderId(), updatedAt: Date.now() } : n));
+        if (selFolderId === id) openNotesOverview();
     }
     function quickAddNote(title, folderId) {
         const now = Date.now();
@@ -1928,7 +2051,7 @@ function App() {
     const done = tasks.filter(t => t.done).length;
     const total = tasks.length;
     const pct = total ? Math.round((done / total) * 100) : 0;
-    const visibleNotes = (selFolderId ? notes.filter(n => n.folderId === selFolderId) : notes).sort((a, b) => b.createdAt - a.createdAt);
+    const visibleNotes = (selFolderId ? notes.filter(n => n.folderId === selFolderId) : notes).sort((a, b) => noteSortTime(b) - noteSortTime(a));
     const todayMedDoses = meds.flatMap(m => getMedDosesForDate(m, todayStr()).map(d => ({ med: m, dose: d, done: !!medLogs[d.key] })));
     const medsTakenToday = todayMedDoses.filter(x => x.done).length;
     const todayTaskDateOptions = [offsetDateStr(-2), offsetDateStr(-1), todayStr(), offsetDateStr(1), offsetDateStr(2)];
@@ -2052,8 +2175,10 @@ function App() {
             openAddAppt();
         else if (tab === "meds")
             openAddMed();
-        else if (tab === "notes")
-            openAddNote();
+        else if (tab === "notes") {
+            if (noteView === "overview") setShowFolderMgr(true);
+            else if (noteView === "list") openAddNote(selFolderId || generalFolderId());
+        }
         else if (tab === "sync")
             exportPendingAppleChanges();
         else if (tab === "tasks" && taskSubTab === "overview")
@@ -2181,6 +2306,8 @@ function App() {
         setTab(key);
         if (key === "tasks")
             openTaskPage("overview");
+        if (key === "notes")
+            openNotesOverview();
         setSearchOpen(false);
         setSearchQuery("");
         setSearchReturnSnapshot(null);
@@ -2191,7 +2318,7 @@ function App() {
         if (tab === "tasks")
             return taskSubTab === "overview";
         if (tab === "notes")
-            return noteView === "list";
+            return noteView === "overview";
         if (tab === "calendar")
             return !showApptForm && !selectedApptId;
         if (tab === "meds")
@@ -2233,6 +2360,102 @@ function App() {
                 renderMainNavCard({ keyName: "notes", title: "Notes", subtitle: "Saved notes", count: notes.length, icon: "≡", color: C.amber }),
                 React.createElement("div", { style: { gridColumn: "1 / -1" } }, renderMainNavCard({ keyName: "sync", title: "Sync", subtitle: pendingAppleCount ? "Pending Apple changes" : "Everything synced", count: pendingAppleCount, icon: "↗", color: pendingAppleCount ? C.amber : C.dim }))));
     }
+    function renderNoteFolderManager() {
+        return React.createElement("div", { style: cardSurface({ borderRadius: 16, padding: 14, marginBottom: 12 }) },
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 8 } },
+                React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 780 } }, "Note Categories"),
+                React.createElement("button", { onClick: () => setShowFolderMgr(false), style: { border: "none", background: "transparent", color: C.muted, cursor: "pointer", fontSize: 18, fontWeight: 800 } }, "×")),
+            React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 12 } },
+                React.createElement("input", { placeholder: "New category", value: folderDraft.name, onChange: e => setFolderDraft(d => ({ ...d, name: e.target.value })), onKeyDown: e => e.key === "Enter" && addFolder(), style: { ...inp, flex: 1, padding: "8px 10px", fontSize: 12 } }),
+                React.createElement("button", { onClick: addFolder, style: { padding: "8px 12px", borderRadius: 10, border: "none", background: C.accent, color: C.text, fontWeight: 800, fontSize: 11, cursor: "pointer", fontFamily: "inherit" } }, "Add")),
+            React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 12, flexWrap: "wrap" } }, ACCENT_COLORS.slice(0, 8).map(c => React.createElement("button", { key: c, onClick: () => setFolderDraft(d => ({ ...d, color: c })), style: { width: 22, height: 22, borderRadius: 7, background: c, border: "none", cursor: "pointer", outline: folderDraft.color === c ? `2px solid ${C.text}` : "1px solid transparent", outlineOffset: 1 } }))),
+            folders.map(f => React.createElement("div", { key: f.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 0", borderTop: `1px solid ${C.border}` } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 9, minWidth: 0 } },
+                    React.createElement("span", { style: { width: 10, height: 10, borderRadius: 5, background: f.color, flexShrink: 0 } }),
+                    React.createElement("span", { style: { color: C.text, fontSize: 12, fontWeight: 680, overflow: "hidden", textOverflow: "ellipsis" } }, f.name),
+                    React.createElement("span", { style: { color: C.dim, fontSize: 11 } }, notes.filter(n => n.folderId === f.id).length)),
+                f.id !== "general" && React.createElement("button", { onClick: () => deleteFolder(f.id), style: { border: "none", background: C.red + "14", color: C.red, width: 30, height: 30, borderRadius: 10, cursor: "pointer", fontWeight: 900, fontSize: 14 } }, "×"))));
+    }
+    function renderNotesOverviewRow({ title, count, color, icon, onClick }) {
+        return React.createElement("button", { onClick, style: cardSurface({ width: "100%", borderRadius: 16, padding: "14px 14px", marginBottom: 8, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${color || C.accent}` }) },
+            React.createElement("div", { style: { width: 34, height: 34, borderRadius: 12, background: (color || C.accent) + "22", color: color || C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 17, flexShrink: 0 } }, icon || "≡"),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } }, React.createElement("div", { style: { color: C.text, fontSize: 15, fontWeight: 760 } }, title)),
+            React.createElement("div", { style: { color: C.muted, fontSize: 17, fontWeight: 800 } }, count));
+    }
+    function renderNoteCard(n, inAll) {
+        var _a, _b;
+        const folder = folders.find(f => f.id === n.folderId) || folders.find(f => f.id === "general") || DEFAULT_FOLDERS[0];
+        const isOpen = activeNoteActionsId === n.id;
+        const preview = (n.type || "descriptive") === "topic"
+            ? (n.topics || []).filter(Boolean).slice(0, 2).map(t => "• " + t).join("\n")
+            : String(n.content || "");
+        if (isOpen) {
+            const stop = e => { e.stopPropagation(); e.preventDefault(); };
+            return React.createElement("div", { key: n.id, style: cardSurface({ borderRadius: 16, padding: 12, marginBottom: 8, borderLeft: `3px solid ${folder.color || C.amber}` }) },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } },
+                    React.createElement("button", { onClick: e => { stop(e); setActiveNoteActionsId(null); }, style: actionButtonSurface(C.muted, C.bg3) }, React.createElement(ActionIcon, { name: "return" })),
+                    React.createElement("button", { onClick: e => { stop(e); shareNote(n); setActiveNoteActionsId(null); }, style: actionButtonSurface(C.accent, C.accent + "18") }, "↥"),
+                    React.createElement("button", { onClick: e => { stop(e); deleteNote(n.id); setActiveNoteActionsId(null); }, style: actionButtonSurface(C.red, C.red + "14") }, React.createElement(ActionIcon, { name: "delete" }))));
+        }
+        return React.createElement("div", { key: n.id, onClick: () => openViewNote(n, { view: "list", folderId: selFolderId }), style: cardSurface({ borderRadius: 16, padding: "13px 12px 13px 14px", marginBottom: 8, borderLeft: `3px solid ${folder.color || C.amber}`, cursor: "pointer" }) },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                    React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 760, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, normalizeNoteTitle(n.title)),
+                    React.createElement("div", { style: { color: (_a = folder.color) !== null && _a !== void 0 ? _a : C.muted, fontSize: 10, fontWeight: 700, marginBottom: preview ? 5 : 0 } }, (n.type === "topic" ? "Topic" : "Text"), inAll ? ` · ${(_b = folder.name) !== null && _b !== void 0 ? _b : "General"}` : ""),
+                    preview && React.createElement("div", { style: { color: C.muted, fontSize: 12, lineHeight: 1.45, whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, preview)),
+                getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(getImages(n)[0]); }, style: { width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0 } }),
+                React.createElement("button", { onClick: e => { e.stopPropagation(); setActiveNoteActionsId(activeNoteActionsId === n.id ? null : n.id); }, style: { width: 42, height: 42, borderRadius: 14, border: `1px solid ${C.border}`, background: C.bg3, color: C.muted, cursor: "pointer", fontSize: 22, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, "⋯")));
+    }
+    function renderNoteDetailPage() {
+        const n = notes.find(x => x.id === selectedNoteId);
+        if (!n) return React.createElement("div", null, React.createElement("button", { onClick: returnFromNotePage, style: { border: "none", background: "transparent", color: C.accent, cursor: "pointer", fontWeight: 760, fontSize: 13, fontFamily: "inherit", padding: "0 0 14px" } }, "‹ Notes"));
+        const folder = folders.find(f => f.id === (noteDraft.folderId || n.folderId)) || folders.find(f => f.id === "general") || DEFAULT_FOLDERS[0];
+        const topics = noteDraft.topics && noteDraft.topics.length ? noteDraft.topics : [""];
+        return React.createElement("div", null,
+            React.createElement("button", { onClick: returnFromNotePage, style: { border: "none", background: "transparent", color: C.accent, cursor: "pointer", fontWeight: 760, fontSize: 13, fontFamily: "inherit", padding: "0 0 14px" } }, "‹ Notes"),
+            React.createElement("input", { placeholder: "Untitled", value: noteDraft.title || "", onChange: e => updateOpenNote({ title: e.target.value }), style: { width: "100%", boxSizing: "border-box", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 30, fontWeight: 820, letterSpacing: -0.8, marginBottom: 10 } }),
+            React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, alignItems: "center" } },
+                folders.map(f => React.createElement("button", { key: f.id, onClick: () => updateOpenNote({ folderId: f.id }), style: { padding: "5px 9px", borderRadius: 999, border: (noteDraft.folderId || n.folderId) === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: (noteDraft.folderId || n.folderId) === f.id ? f.color + "22" : C.bg2, color: (noteDraft.folderId || n.folderId) === f.id ? f.color : C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, f.name)),
+                React.createElement("button", { onClick: () => updateOpenNote({ type: (noteDraft.type || n.type) === "topic" ? "descriptive" : "topic" }), style: { padding: "5px 9px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, (noteDraft.type || n.type) === "topic" ? "Topic" : "Text")),
+            getImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginBottom: 12 } }, getImages(noteDraft).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }))),
+            (noteDraft.type || n.type) === "topic" ? React.createElement("div", { style: { marginBottom: 12 } },
+                topics.map((topic, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 } },
+                    React.createElement("span", { style: { color: folder.color || C.amber, fontSize: 18, fontWeight: 900 } }, "•"),
+                    React.createElement("input", { placeholder: `Topic ${i + 1}`, value: topic, onChange: e => updateOpenNoteTopic(i, e.target.value), onKeyDown: e => { if (e.key === "Enter") { e.preventDefault(); addOpenNoteTopic(i); } if (e.key === "Backspace" && !topic && topics.length > 1) { e.preventDefault(); removeOpenNoteTopic(i); } }, style: { ...inp, flex: 1, border: "none", background: C.bg2, fontSize: 14 } }),
+                    topics.length > 1 && React.createElement("button", { onClick: () => removeOpenNoteTopic(i), style: { border: "none", background: "transparent", color: C.red, cursor: "pointer", fontSize: 18, fontWeight: 900 } }, "×"))),
+                React.createElement("button", { onClick: () => addOpenNoteTopic(topics.length - 1), style: { padding: "7px 10px", borderRadius: 10, border: `1px dashed ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 700 } }, "+ Add Topic"))
+                : React.createElement("textarea", { placeholder: "Start writing...", value: noteDraft.content || "", onChange: e => updateOpenNote({ content: e.target.value }), rows: 12, style: { width: "100%", boxSizing: "border-box", minHeight: 260, border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "vertical", marginBottom: 12 } }),
+            React.createElement(MultiImageUploadBtn, { value: noteDraft.imageUrls || getImages(noteDraft), onChange: urls => updateOpenNote(makeImageData(urls)) }));
+    }
+    function renderNotesTabContent() {
+        const sorted = [...notes].sort((a, b) => noteSortTime(b) - noteSortTime(a));
+        const inAll = selFolderId === null;
+        const pageNotes = inAll ? sorted : sorted.filter(n => n.folderId === selFolderId);
+        const folder = selFolderId ? folders.find(f => f.id === selFolderId) : null;
+        if (noteView === "view") return renderNoteDetailPage();
+        if (noteView === "list") {
+            return React.createElement("div", null,
+                React.createElement("button", { onClick: openNotesOverview, style: { border: "none", background: "transparent", color: C.accent, cursor: "pointer", fontWeight: 760, fontSize: 13, fontFamily: "inherit", padding: "0 0 14px" } }, "‹ Notes"),
+                React.createElement("div", { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10, marginBottom: 14 } },
+                    React.createElement("div", null,
+                        React.createElement("div", { style: { color: folder ? (folder.color || C.amber) : C.accent, fontSize: 30, fontWeight: 820, lineHeight: 1.05, letterSpacing: -0.7 } }, folder ? folder.name : "All Notes"),
+                        React.createElement("div", { style: { color: C.muted, fontSize: 12, marginTop: 5 } }, pageNotes.length, " note", pageNotes.length === 1 ? "" : "s"))),
+                pageNotes.map(n => renderNoteCard(n, inAll)),
+                pageNotes.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "46px 0", color: C.muted } },
+                    React.createElement("div", { style: { fontSize: 30, marginBottom: 8 } }, "≡"),
+                    React.createElement("div", { style: { fontSize: 13, fontWeight: 720 } }, folder ? `No notes in ${folder.name}` : "No notes yet")));
+        }
+        return React.createElement("div", null,
+            React.createElement("div", { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 14 } },
+                React.createElement("div", null,
+                    React.createElement("div", { style: { color: C.text, fontSize: 30, fontWeight: 820, letterSpacing: -0.8, lineHeight: 1.05 } }, "Notes"),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 12, marginTop: 5 } }, "Categories and folders")),
+                React.createElement("button", { onClick: () => setShowFolderMgr(v => !v), style: { width: 42, height: 42, borderRadius: 14, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, cursor: "pointer", fontSize: 20, fontWeight: 900 } }, "+")),
+            showFolderMgr && renderNoteFolderManager(),
+            renderNotesOverviewRow({ title: "All", count: notes.length, color: C.accent, icon: "≡", onClick: () => openNotesList(null) }),
+            folders.map(f => renderNotesOverviewRow({ title: f.name, count: notes.filter(n => n.folderId === f.id).length, color: f.color || C.amber, icon: "□", onClick: () => openNotesList(f.id) })));
+    }
+
     const tabContent = (React.createElement(React.Fragment, null,
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
             searchResults.tasks.length === 0 && searchResults.appts.length === 0 && searchResults.notes.length === 0 && (React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
@@ -2249,7 +2472,7 @@ function App() {
                 searchResults.notes.map(n => {
                     var _a, _b, _c;
                     const folder = folders.find(f => f.id === n.folderId);
-                    return (React.createElement("div", { key: n.id, onClick: () => { setTab("notes"); setNoteView("list"); setSearchOpen(false); setSearchQuery(""); openEditNote(n); }, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${(_a = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _a !== void 0 ? _a : C.amber}`, cursor: "pointer" } },
+                    return (React.createElement("div", { key: n.id, onClick: () => { setTab("notes"); setSearchOpen(false); setSearchQuery(""); openViewNote(n, { view: "list", folderId: n.folderId || null }); }, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${(_a = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _a !== void 0 ? _a : C.amber}`, cursor: "pointer" } },
                         React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, n.title),
                         React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 0.2, marginTop: 3 } }, (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
                         n.content && React.createElement("div", { style: { fontSize: 11, color: C.muted, marginTop: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, n.content)));
@@ -2443,91 +2666,7 @@ function App() {
             showMedForm && React.createElement(MedicationForm, { draft: medDraft, setDraft: setMedDraft, onSave: saveMed, onCancel: () => { setShowMedForm(false); setEditingMedId(null); }, editing: editingMedId !== null }),
             meds.length ? meds.map(m => React.createElement(MedicationCard, { key: m.id, med: m, medLogs: medLogs, onToggleDose: toggleMedDose, onEdit: openEditMed, onDelete: deleteMed }))
                 : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "14px 0" } }, "No medications added yet."))),
-        !searchOpen && tab === "notes" && (React.createElement("div", null, noteView === "view" ? (() => {
-            const n = notes.find(x => x.id === selectedNoteId);
-            const folder = n ? folders.find(f => f.id === n.folderId) : null;
-            if (!n) return React.createElement("div", null, React.createElement("button", { onClick: () => setNoteView("list"), style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 14, padding: 0 } }, "\u2190 BACK"));
-            return React.createElement("div", null,
-                React.createElement("button", { onClick: () => { setNoteView("list"); setSelectedNoteId(null); }, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 14, padding: 0 } }, "\u2190 BACK"),
-                React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, borderLeft: `3px solid ${(folder && folder.color) || C.accent}` } },
-                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start", marginBottom: 8 } },
-                        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                            React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: C.text, lineHeight: 1.3, marginBottom: 4 } }, n.title),
-                            React.createElement("div", { style: { fontSize: 9, color: (folder && folder.color) || C.muted, fontWeight: 700, letterSpacing: 0.2 } }, n.type === "topic" ? "\u25c8 TOPIC" : "\u2261 TEXT", " \u00b7 ", (folder && folder.name) || "General")),
-                        React.createElement("div", { style: { display: "flex", gap: 6, flexShrink: 0 } },
-                            React.createElement("button", { onClick: () => openEditNote(n), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.text, cursor: "pointer", fontWeight: 760, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Edit"),
-                            React.createElement("button", { onClick: () => { deleteNote(n.id); setNoteView("list"); setSelectedNoteId(null); }, style: { padding: "7px 10px", borderRadius: 9, border: `1px solid ${C.red}28`, background: C.red + "14", color: C.red, cursor: "pointer", fontWeight: 760, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Delete"))),
-                    getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: () => openPlannerImage(getImages(n)[0]), style: { maxWidth: "100%", borderRadius: 10, maxHeight: 190, objectFit: "cover", display: "block", margin: "10px 0" } }),
-                    n.type === "descriptive" ? React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 14 } }, n.content || "No content.")
-                        : React.createElement("div", { style: { marginTop: 14 } }, (n.topics || []).length ? n.topics.map((t, i) => React.createElement("div", { key: i, style: { fontSize: 13, color: C.text, lineHeight: 1.6, marginBottom: 6 } }, "\u2022 ", t)) : React.createElement("div", { style: { fontSize: 13, color: C.muted } }, "No topics."))));
-        })() : noteView === "list" ? (React.createElement(React.Fragment, null,
-            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
-                React.createElement(CatPill, { label: "All", active: selFolderId === null, color: C.accent, onClick: () => setSelFolderId(null) }),
-                folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name, active: selFolderId === f.id, color: f.color, onClick: () => setSelFolderId(selFolderId === f.id ? null : f.id) })),
-                React.createElement("button", { onClick: () => setShowFolderMgr(!showFolderMgr), style: { padding: "4px 8px", borderRadius: 20, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.dim, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "\u2699")),
-            showFolderMgr && (React.createElement("div", { style: { background: C.bg2, borderRadius: 14, padding: 14, border: `1px solid ${C.border}`, marginBottom: 12 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 10 } }, "// FOLDERS"),
-                folders.map(f => (React.createElement("div", { key: f.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
-                    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
-                        React.createElement("div", { style: { width: 10, height: 10, borderRadius: "50%", background: f.color } }),
-                        React.createElement("span", { style: { fontSize: 12, color: C.text } }, f.name)),
-                    React.createElement("button", { onClick: () => deleteFolder(f.id), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 16, fontWeight: 700, opacity: f.id === "general" ? 0.2 : 1, pointerEvents: f.id === "general" ? "none" : "auto" } }, "\u00D7")))),
-                React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, alignItems: "center" } },
-                    React.createElement("input", { placeholder: "New folder", value: folderDraft.name, onChange: e => setFolderDraft(d => ({ ...d, name: e.target.value })), onKeyDown: e => e.key === "Enter" && addFolder(), style: { ...inp, flex: 1, padding: "7px 10px", fontSize: 12 } }),
-                    React.createElement("div", { style: { display: "flex", gap: 3 } }, ACCENT_COLORS.slice(0, 5).map(c => React.createElement("button", { key: c, onClick: () => setFolderDraft(d => ({ ...d, color: c })), style: { width: 18, height: 18, borderRadius: 4, background: c, border: "none", cursor: "pointer", outline: folderDraft.color === c ? `2px solid white` : "none", outlineOffset: 1 } }))),
-                    React.createElement("button", { onClick: addFolder, style: { padding: "7px 10px", borderRadius: 8, border: "none", background: C.accent, color: C.text, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "+")))),
-            visibleNotes.map(n => {
-                var _a, _b, _c;
-                const folder = folders.find(f => f.id === n.folderId);
-                return (React.createElement("div", { key: n.id, onClick: () => openViewNote(n), style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${(_a = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _a !== void 0 ? _a : C.accent}`, cursor: "pointer" } },
-                    React.createElement("div", { style: { display: "flex", gap: 10, alignItems: "flex-start" } },
-                        React.createElement("div", { style: { flex: 1, minWidth: 0 } },
-                            React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text, marginBottom: 4 } }, n.title),
-                            React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 0.2, marginBottom: 6 } },
-                                n.type === "topic" ? "◈ Topic" : "≡ Text",
-                                " \u00B7 ", (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
-                            n.type === "descriptive" && n.content && React.createElement("div", { style: { fontSize: 11, color: C.muted, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, n.content),
-                            n.type === "topic" && n.topics.length > 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted } },
-                                n.topics.slice(0, 2).map((t, i) => React.createElement("div", { key: i, style: { marginBottom: 2 } },
-                                    "\u00B7 ",
-                                    t)),
-                                n.topics.length > 2 && React.createElement("div", { style: { color: C.dim } },
-                                    "+",
-                                    n.topics.length - 2,
-                                    " more"))),
-                        getImages(n)[0] && React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 } },
-                            React.createElement("img", { src: getImages(n)[0], alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(getImages(n)[0]); }, style: { width: 46, height: 46, borderRadius: 8, objectFit: "cover" } })))));
-            }),
-            visibleNotes.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
-                React.createElement("div", { style: { fontSize: 32, marginBottom: 10 } }, "\u2261"),
-                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 0.4 } }, "No notes yet")))) : (React.createElement("div", null,
-            React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { background: "transparent", border: "none", color: C.accent, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", letterSpacing: 0.2, marginBottom: 14, padding: 0 } }, "\u2190 BACK"),
-            React.createElement("input", { placeholder: "Note title", value: noteDraft.title, onChange: e => setNoteDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 10, fontSize: 15, fontWeight: 700 } }),
-            React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10, background: C.bg2, borderRadius: 10, padding: 3, border: `1px solid ${C.border}` } }, [["descriptive", "≡ DESCRIPTIVE"], ["topic", "◈ TOPICS"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setNoteDraft(d => ({ ...d, type: key })), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 0.2, fontFamily: "inherit", background: noteDraft.type === key ? C.amber : "transparent", color: noteDraft.type === key ? C.bg0 : C.muted } }, label)))),
-            React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "Folder"),
-            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" } }, folders.map(f => React.createElement("button", { key: f.id, onClick: () => setNoteDraft(d => ({ ...d, folderId: f.id })), style: { padding: "5px 10px", borderRadius: 20, border: noteDraft.folderId === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: noteDraft.folderId === f.id ? f.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: noteDraft.folderId === f.id ? f.color : C.muted, letterSpacing: 0.2 } }, f.name))),
-            noteDraft.type === "descriptive" ? (React.createElement("textarea", { placeholder: "Write your note here...", value: noteDraft.content, onChange: e => setNoteDraft(d => ({ ...d, content: e.target.value })), rows: 8, style: { ...inp, resize: "none", marginBottom: 10, lineHeight: 1.7 } })) : (React.createElement("div", { style: { marginBottom: 10 } },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 8 } }, "Press Enter to add \u00B7 Backspace on empty to remove"),
-                noteDraft.topics.map((topic, i) => (React.createElement("div", { key: i, style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } },
-                    React.createElement("span", { style: { color: C.amber, fontWeight: 700, fontSize: 16, flexShrink: 0, lineHeight: 1 } }, "\u00B7"),
-                    React.createElement("input", { placeholder: `Topic ${i + 1}`, value: topic, onChange: e => { const t = [...noteDraft.topics]; t[i] = e.target.value; setNoteDraft(d => ({ ...d, topics: t })); }, onKeyDown: e => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                const t = [...noteDraft.topics];
-                                t.splice(i + 1, 0, "");
-                                setNoteDraft(d => ({ ...d, topics: t }));
-                            }
-                            if (e.key === "Backspace" && !topic && noteDraft.topics.length > 1) {
-                                e.preventDefault();
-                                setNoteDraft(d => ({ ...d, topics: d.topics.filter((_, idx) => idx !== i) }));
-                            }
-                        }, style: { ...inp, flex: 1, padding: "7px 10px", fontSize: 13 } }),
-                    noteDraft.topics.length > 1 && React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: d.topics.filter((_, idx) => idx !== i) })), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 18, fontWeight: 700, lineHeight: 1 } }, "\u00D7")))),
-                React.createElement("button", { onClick: () => setNoteDraft(d => ({ ...d, topics: [...d.topics, ""] })), style: { padding: "6px 12px", borderRadius: 8, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontWeight: 700, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginTop: 4 } }, "+ Add Topic"))),
-            React.createElement(MultiImageUploadBtn, { value: noteDraft.imageUrls || getImages(noteDraft), onChange: urls => setNoteDraft(d => ({ ...d, ...makeImageData(urls) })) }),
-            React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 6 } },
-                React.createElement("button", { onClick: () => { setNoteView("list"); setEditingNoteId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
-                React.createElement("button", { onClick: saveNote, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, "Save Note"))))))));
+        !searchOpen && tab === "notes" && renderNotesTabContent()));
     // ── Focus banner (shared) ───────────────────────────────────────────────────
     const compactFocus = false;
     const focusBanner = (React.createElement("div", { style: cardSurface({ border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}66` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 14 : 18, padding: compactFocus ? "8px 10px" : "13px 14px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }) , onClick: !editMot ? startEditMot : undefined },
@@ -2559,7 +2698,7 @@ function App() {
                     React.createElement("div", { style: { height: "100%", borderRadius: 4, background: taskProgressPct === 100 ? C.green : C.accent, width: `${taskProgressPct}%`, transition: "width 0.5s cubic-bezier(.4,2,.6,1)" } })))),
             React.createElement("div", { style: { height: "calc(100dvh - 58px)", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "24px 24px 96px", boxSizing: "border-box" } },
                 React.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, content)),
-            tab !== "today" && !searchOpen && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 30, width: 56, height: 56, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 25, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+            tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 30, width: 56, height: 56, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 25, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
             lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
                 React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: 18, right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "×"),
                 React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
@@ -2587,7 +2726,7 @@ function App() {
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
             React.createElement("input", { ref: searchRef, "data-no-swipe-back": "true", placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: tab === "today" ? "20px 14px 34px" : "14px 14px 106px" } }, phoneContent),
-        tab !== "today" && !searchOpen && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 24, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+        tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 24, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
             React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "×"),
             React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
