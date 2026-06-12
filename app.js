@@ -8,7 +8,7 @@ const C = {
 const UI = {
     font: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif",
     mono: "'SF Mono', ui-monospace, monospace",
-    appBg: "#080D14",
+    appBg: "linear-gradient(180deg,#0D1420 0%,#080D14 100%)",
     panelBg: "rgba(13,20,32,0.88)",
     cardBg: "rgba(255,255,255,0.045)",
     controlBg: "rgba(255,255,255,0.055)",
@@ -293,7 +293,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v52";
+const APP_VERSION = "v53";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -318,6 +318,33 @@ function pruneRecentDayMap(map) {
 
 function capitalizeLabel(s) {
     return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : "";
+}
+function normalizeTaskTagName(value) {
+    let raw = String(value || "").trim();
+    if (!raw)
+        return "";
+    raw = raw.replace(/^#+/, "").trim();
+    if (!raw || /\s/.test(raw))
+        return "";
+    return raw.toLowerCase();
+}
+function displayTaskTag(value) {
+    const clean = normalizeTaskTagName(value);
+    return clean ? `#${clean}` : "";
+}
+function normalizeTaskTags(list) {
+    const out = [];
+    const seen = new Set();
+    if (Array.isArray(list)) {
+        for (const item of list) {
+            const name = normalizeTaskTagName(item && (item.name || item.taskTag || item.tagName || item.id));
+            if (!name || seen.has(name))
+                continue;
+            seen.add(name);
+            out.push({ id: `tag-${name}`, name, createdAt: (item && item.createdAt) || new Date().toISOString() });
+        }
+    }
+    return out;
 }
 function getTaskDueDateTime(task) {
     if (!task || !task.dueDate)
@@ -574,6 +601,9 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
         metaItems.push(React.createElement("span", { key: "pri", style: { fontSize: 9, fontWeight: 700, color: isOverdue ? C.red : isToday ? C.green : p.color, letterSpacing: 0.4 } }, isOverdue ? "⚠ Overdue" : isToday ? "● Today" : `${p.icon} ${p.label}`));
     if (task.done)
         metaItems.push(React.createElement("span", { key: "done", style: { fontSize: 9, fontWeight: 800, color: C.green, letterSpacing: 0.2 } }, "✓ DONE"));
+    const taskTagLabel = displayTaskTag(task.taskTag || task.tagName || "");
+    if (taskTagLabel)
+        metaItems.push(React.createElement("span", { key: "tag", style: { fontSize: 9, fontWeight: 800, color: C.muted, background: UI.controlBg, padding: "1px 6px", borderRadius: 10, letterSpacing: 0.2 } }, taskTagLabel));
     if (cat)
         metaItems.push(React.createElement("span", { key: "cat", style: { fontSize: 9, fontWeight: 700, color: cat.color, background: cat.color + "18", padding: "1px 6px", borderRadius: 10, letterSpacing: 0.2 } }, cat.name));
     if (task.dueDate && !task.done)
@@ -918,12 +948,17 @@ function App() {
     const [medDraft, setMedDraft] = useState(emptyMed);
     const [rawTasks, setTasks] = useLocalState("adhd3_tasks", []);
     const tasks = rawTasks.map(t => {
-        const normalized = { dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [], imageUrls: [], completedAt: "", plannerId: "", ...t, imageUrls: getImages(t) };
-        return { ...normalized, plannerId: normalized.plannerId || taskPlannerId(normalized), categoryId: normalizeTaskCategoryId(normalized.categoryId) };
+        const normalized = { dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [], imageUrls: [], completedAt: "", plannerId: "", taskTag: "", ...t, imageUrls: getImages(t) };
+        return { ...normalized, plannerId: normalized.plannerId || taskPlannerId(normalized), categoryId: normalizeTaskCategoryId(normalized.categoryId), taskTag: normalizeTaskTagName(normalized.taskTag || normalized.tagName || "") };
     });
     useEffect(() => { setTasks(p => compactStoredRecords(p, compactDoneTaskRecord)); }, [rawTasks]);
     const [categories, setCategories] = useLocalState("adhd3_cats", DEFAULT_CATEGORIES);
     useEffect(() => { setCategories(p => mergeTaskCategories(p)); }, []);
+    const [taskTags, setTaskTags] = useLocalState("adhd3_task_tags", []);
+    useEffect(() => { setTaskTags(p => normalizeTaskTags(p)); }, []);
+    const [showTaskTagMgr, setShowTaskTagMgr] = useState(false);
+    const [taskTagDraft, setTaskTagDraft] = useState("");
+    const [taskTagError, setTaskTagError] = useState("");
     const [taskCatFilter, setTaskCatFilter] = useState("all");
     const [taskViewFilter, setTaskViewFilter] = useState("all");
     const [taskSort, setTaskSort] = useState("priority");
@@ -931,7 +966,7 @@ function App() {
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [showCatMgr, setShowCatMgr] = useState(false);
     const [catDraft, setCatDraft] = useState({ name: "", color: ACCENT_COLORS[4] });
-    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [] }); };
+    const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", taskTag: "", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [taskAlertOpen, setTaskAlertOpen] = useState(false);
     const [taskSubTab, setTaskSubTab] = useState("today");
@@ -994,7 +1029,7 @@ function App() {
             return null;
         const q = searchQuery.toLowerCase();
         return {
-            tasks: tasks.filter(t => { var _a; return t.text.toLowerCase().includes(q) || ((_a = t.description) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(q)); }),
+            tasks: tasks.filter(t => { var _a; return t.text.toLowerCase().includes(q) || displayTaskTag(t.taskTag).toLowerCase().includes(q) || normalizeTaskTagName(t.taskTag).includes(q.replace(/^#/, "")) || ((_a = t.description) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(q)); }),
             appts: appts.filter(a => { var _a; return a.title.toLowerCase().includes(q) || ((_a = a.description) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(q)); }),
             notes: notes.filter(n => { var _a, _b; return n.title.toLowerCase().includes(q) || ((_a = n.content) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(q)) || ((_b = n.topics) === null || _b === void 0 ? void 0 : _b.some(t => t.toLowerCase().includes(q))); }),
         };
@@ -1059,7 +1094,7 @@ function App() {
     function openAddTask() { setTaskDraft(emptyTask()); setTaskAlertOpen(false); setEditingTaskId(null); setShowTaskForm(true); }
     function openEditTask(t) {
         var _a, _b, _c, _d, _e;
-        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, imageUrl: getImages(t)[0] || "", imageUrls: getImages(t), dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", dueTime: (_d = t.dueTime) !== null && _d !== void 0 ? _d : "", alertEnabled: !!t.alertEnabled, alertDate: t.alertDate || "", alertTime: (_e = t.alertTime) !== null && _e !== void 0 ? _e : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
+        setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, taskTag: normalizeTaskTagName(t.taskTag || t.tagName || ""), imageUrl: getImages(t)[0] || "", imageUrls: getImages(t), dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", dueTime: (_d = t.dueTime) !== null && _d !== void 0 ? _d : "", alertEnabled: !!t.alertEnabled, alertDate: t.alertDate || "", alertTime: (_e = t.alertTime) !== null && _e !== void 0 ? _e : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
         setTaskAlertOpen(!!(t.alertEnabled || t.alertDate || t.alertTime));
         setEditingTaskId(t.id);
         setShowTaskForm(true);
@@ -1067,7 +1102,7 @@ function App() {
     function saveTask() {
         if (!taskDraft.text.trim())
             return null;
-        const normalizedTaskDraft = { ...taskDraft, alertEnabled: !!taskDraft.alertEnabled };
+        const normalizedTaskDraft = { ...taskDraft, taskTag: normalizeTaskTagName(taskDraft.taskTag), alertEnabled: !!taskDraft.alertEnabled };
         if (!normalizedTaskDraft.alertEnabled) {
             normalizedTaskDraft.alertDate = "";
             normalizedTaskDraft.alertTime = "";
@@ -1209,6 +1244,64 @@ function App() {
         setCategories(p => p.filter(c => c.id !== id));
         setTasks((p) => p.map(t => { var _a, _b; return t.categoryId === id ? { ...t, categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal" } : t; }));
     }
+    function addTaskTag(autoSelect = false) {
+        const raw = String(taskTagDraft || "").trim();
+        if (!raw) {
+            setTaskTagError("Enter a tag name.");
+            return;
+        }
+        if (/\s/.test(raw)) {
+            setTaskTagError("Tags cannot contain spaces.");
+            return;
+        }
+        const name = normalizeTaskTagName(raw);
+        if (!name) {
+            setTaskTagError("Use letters, numbers, dashes, or underscores.");
+            return;
+        }
+        if (taskTags.some(t => normalizeTaskTagName(t.name) === name)) {
+            setTaskTagError(`${displayTaskTag(name)} already exists.`);
+            if (autoSelect)
+                setTaskDraft(d => ({ ...d, taskTag: name }));
+            return;
+        }
+        setTaskTags(p => normalizeTaskTags([...p, { id: `tag-${name}`, name, createdAt: new Date().toISOString() }]));
+        setTaskTagDraft("");
+        setTaskTagError("");
+        if (autoSelect)
+            setTaskDraft(d => ({ ...d, taskTag: name }));
+    }
+    function deleteTaskTag(tag) {
+        const name = normalizeTaskTagName(tag);
+        if (!name)
+            return;
+        const assigned = tasks.filter(t => normalizeTaskTagName(t.taskTag) === name);
+        if (assigned.length && !window.confirm(`Delete ${displayTaskTag(name)} and remove it from ${assigned.length} assigned task${assigned.length === 1 ? "" : "s"}?`))
+            return;
+        setTaskTags(p => normalizeTaskTags(p).filter(t => t.name !== name));
+        if (normalizeTaskTagName(taskDraft.taskTag) === name)
+            setTaskDraft(d => ({ ...d, taskTag: "" }));
+        if (assigned.length) {
+            setTasks(p => p.map(t => normalizeTaskTagName(t.taskTag) === name ? { ...t, taskTag: "" } : t));
+            assigned.forEach(t => markPendingAppleChange("task", { ...t, taskTag: "" }, "upsert", "tag-deleted"));
+        }
+    }
+    function renderTaskTagManager(compact = false) {
+        const cleanTags = normalizeTaskTags(taskTags);
+        return React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 14, marginBottom: compact ? 12 : 14 }) },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 10 } },
+                React.createElement("div", { style: { fontSize: 12, fontWeight: 800, color: C.text } }, "Task Tags"),
+                React.createElement("button", { onClick: () => setShowTaskTagMgr(false), style: { background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, fontWeight: 700 } }, "×")),
+            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 8, alignItems: "center" } },
+                React.createElement("input", { placeholder: "New tag", value: taskTagDraft, onChange: e => { setTaskTagDraft(e.target.value.replace(/\s+/g, "")); setTaskTagError(""); }, onKeyDown: e => { if (e.key === "Enter") addTaskTag(!!showTaskForm); }, style: { ...inp, flex: 1, padding: "8px 10px", fontSize: 12 } }),
+                React.createElement("button", { onClick: () => addTaskTag(!!showTaskForm), style: { width: 38, height: 38, borderRadius: 10, border: "none", background: C.accent, color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 18, fontFamily: "inherit" } }, "+")),
+            taskTagError && React.createElement("div", { style: { color: C.red, fontSize: 11, marginBottom: 8 } }, taskTagError),
+            cleanTags.length ? React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } },
+                cleanTags.map(tag => React.createElement("div", { key: tag.name, style: { display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 999, background: UI.controlBg, border: `1px solid ${C.border}` } },
+                    React.createElement("span", { style: { fontSize: 11, color: C.muted, fontWeight: 800 } }, displayTaskTag(tag.name)),
+                    React.createElement("button", { onClick: () => deleteTaskTag(tag.name), title: `Delete ${displayTaskTag(tag.name)}`, style: { background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 13, fontWeight: 900, padding: 0, lineHeight: 1 } }, "×"))))
+                : React.createElement("div", { style: { color: C.dim, fontSize: 11, padding: "4px 0" } }, "No tags yet."));
+    }
     function addEventCategory() {
         if (!eventCatDraft.name.trim())
             return;
@@ -1308,6 +1401,7 @@ function App() {
         const alertDateText = alertDate && alertTime ? shortcutFriendlyDateTime(alertDate, alertTime) : "";
         const priorityLabel = t.priority ? String(t.priority).charAt(0).toUpperCase() + String(t.priority).slice(1).toLowerCase() : "Medium";
         const notes = t.description || "";
+        const taskTag = displayTaskTag(t.taskTag || t.tagName || "");
         const plannerIdValue = taskPlannerId(t);
         return {
             type: "task",
@@ -1315,6 +1409,7 @@ function App() {
             plannerId: plannerIdValue,
             title: t.text || "Untitled task",
             notes,
+            taskTag,
             appleNotes: appleNotesWithPlannerId(notes, plannerIdValue),
             categoryId: normalizeTaskCategoryId(t.categoryId) || "",
             categoryText: cat && cat.name ? String(cat.name).charAt(0).toUpperCase() + String(cat.name).slice(1) : "",
@@ -1551,7 +1646,7 @@ function App() {
         const data = {
             version: 2,
             exportedAt: new Date().toISOString(),
-            motivation, focusColor, tasks, todayTasksByDate, categories, eventCategories, appts, notes, folders, reviews, meds, medLogs, pendingAppleChanges, showDoneTasks
+            motivation, focusColor, tasks, todayTasksByDate, categories, taskTags: normalizeTaskTags(taskTags), eventCategories, appts, notes, folders, reviews, meds, medLogs, pendingAppleChanges, showDoneTasks
         };
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -1569,8 +1664,15 @@ function App() {
                 setMotivation(data.motivation);
             if (data.focusColor)
                 setFocusColor(data.focusColor);
-            if (Array.isArray(data.tasks))
-                setTasks(data.tasks.map(t => ({ ...t, plannerId: t.plannerId || taskPlannerId(t), completedAt: t.completedAt || "", categoryId: normalizeTaskCategoryId(t.categoryId) })));
+            let importedTasks = null;
+            if (Array.isArray(data.tasks)) {
+                importedTasks = data.tasks.map(t => ({ ...t, plannerId: t.plannerId || taskPlannerId(t), completedAt: t.completedAt || "", categoryId: normalizeTaskCategoryId(t.categoryId), taskTag: normalizeTaskTagName(t.taskTag || t.tagName || "") }));
+                setTasks(importedTasks);
+            }
+            if (Array.isArray(data.taskTags))
+                setTaskTags(normalizeTaskTags(data.taskTags));
+            else if (importedTasks)
+                setTaskTags(normalizeTaskTags(importedTasks.map(t => ({ name: t.taskTag })).filter(t => t.name)));
             if (data.todayTasksByDate && typeof data.todayTasksByDate === "object")
                 setTodayTasksByDate(pruneRecentDayMap(data.todayTasksByDate));
             if (Array.isArray(data.categories))
@@ -1792,7 +1894,9 @@ function App() {
                 React.createElement("div", { style: { textAlign: "center", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.dim, fontWeight: 800, letterSpacing: 0.4 } }, "App Version ", APP_VERSION)))),
         !searchOpen && tab === "tasks" && (React.createElement("div", null,
             React.createElement("div", { style: controlSurface({ display: "flex", gap: 6, marginBottom: 14, borderRadius: 16, padding: 4 }) },
-                [["today", "Today"], ["general", "General"]].map(([key, label]) => React.createElement("button", { key, onClick: () => setTaskSubTab(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 900, fontSize: 10, letterSpacing: 0.2, fontFamily: "inherit", background: taskSubTab === key ? C.accent + "20" : "transparent", color: taskSubTab === key ? C.accent : C.muted, boxShadow: taskSubTab === key ? "none" : "none" } }, label))),
+                [["today", "Today"], ["general", "General"]].map(([key, label]) => React.createElement("button", { key, onClick: () => setTaskSubTab(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 900, fontSize: 10, letterSpacing: 0.2, fontFamily: "inherit", background: taskSubTab === key ? C.accent + "20" : "transparent", color: taskSubTab === key ? C.accent : C.muted, boxShadow: taskSubTab === key ? "none" : "none" } }, label)),
+                React.createElement("button", { onClick: () => setShowTaskTagMgr(v => !v), title: "Task Tags", style: { width: 36, borderRadius: 9, border: `1px solid ${showTaskTagMgr ? C.accent : C.border}`, background: showTaskTagMgr ? C.accent + "16" : "transparent", cursor: "pointer", color: showTaskTagMgr ? C.accent : C.muted, fontWeight: 900, fontSize: 13, fontFamily: "inherit", lineHeight: 1 } }, "#")),
+            showTaskTagMgr && !showTaskForm && renderTaskTagManager(false),
             taskSubTab === "today" && (React.createElement("div", null,
                 React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } },
                     todayTaskDateOptions.map((d, i) => React.createElement("button", { key: d, onClick: () => { setSelectedTodayTaskDate(d); setShowTodayTaskForm(false); }, style: { padding: "6px 10px", borderRadius: 10, border: selectedTodayTaskDate === d ? `1px solid ${C.amber}` : `1px solid ${C.border}`, background: selectedTodayTaskDate === d ? C.amber + "16" : UI.controlBg, color: selectedTodayTaskDate === d ? C.amber : C.muted, fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, cursor: "pointer" } }, d === todayStr() ? "Today" : weekdayLabel(d)))),
@@ -1870,7 +1974,14 @@ function App() {
                     " ",
                     p.label)))),
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "Category"),
-                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } }, categories.map(cat => React.createElement("button", { key: cat.id, onClick: () => setTaskDraft(d => ({ ...d, categoryId: cat.id })), style: { padding: "5px 10px", borderRadius: 20, border: taskDraft.categoryId === cat.id ? `1px solid ${cat.color}` : `1px solid ${C.border}`, background: taskDraft.categoryId === cat.id ? cat.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: taskDraft.categoryId === cat.id ? cat.color : C.muted, letterSpacing: 0.2 } }, cat.name))),
+                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" } }, categories.map(cat => React.createElement("button", { key: cat.id, onClick: () => setTaskDraft(d => ({ ...d, categoryId: cat.id })), style: { padding: "5px 10px", borderRadius: 20, border: taskDraft.categoryId === cat.id ? `1px solid ${cat.color}` : `1px solid ${C.border}`, background: taskDraft.categoryId === cat.id ? cat.color + "22" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: taskDraft.categoryId === cat.id ? cat.color : C.muted, letterSpacing: 0.2 } }, cat.name))),
+                React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 6 } },
+                    React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted } }, "Task Tag"),
+                    React.createElement("button", { onClick: () => setShowTaskTagMgr(v => !v), style: { width: 30, height: 26, borderRadius: 9, border: `1px solid ${showTaskTagMgr ? C.accent : C.border}`, background: showTaskTagMgr ? C.accent + "16" : "transparent", color: showTaskTagMgr ? C.accent : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 13, fontFamily: "inherit" } }, "#")),
+                React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: showTaskTagMgr ? 8 : 12, flexWrap: "wrap" } },
+                    React.createElement("button", { onClick: () => setTaskDraft(d => ({ ...d, taskTag: "" })), style: { padding: "5px 10px", borderRadius: 20, border: !normalizeTaskTagName(taskDraft.taskTag) ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: !normalizeTaskTagName(taskDraft.taskTag) ? C.accent + "16" : "transparent", cursor: "pointer", fontWeight: 700, fontSize: 9, fontFamily: "inherit", color: !normalizeTaskTagName(taskDraft.taskTag) ? C.accent : C.muted, letterSpacing: 0.2 } }, "None"),
+                    normalizeTaskTags([...taskTags, ...(normalizeTaskTagName(taskDraft.taskTag) && !taskTags.some(t => normalizeTaskTagName(t.name) === normalizeTaskTagName(taskDraft.taskTag)) ? [{ name: taskDraft.taskTag }] : [])]).map(tag => React.createElement("button", { key: tag.name, onClick: () => setTaskDraft(d => ({ ...d, taskTag: tag.name })), style: { padding: "5px 10px", borderRadius: 20, border: normalizeTaskTagName(taskDraft.taskTag) === tag.name ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: normalizeTaskTagName(taskDraft.taskTag) === tag.name ? C.accent + "16" : "transparent", cursor: "pointer", fontWeight: 800, fontSize: 9, fontFamily: "inherit", color: normalizeTaskTagName(taskDraft.taskTag) === tag.name ? C.accent : C.muted, letterSpacing: 0.2 } }, displayTaskTag(tag.name)))),
+                showTaskTagMgr && showTaskForm && renderTaskTagManager(true),
                 taskDraft.subtasks.length > 0 && (React.createElement("div", { style: { marginBottom: 10 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 6 } }, "Subtasks"),
                     taskDraft.subtasks.map((s, i) => (React.createElement("div", { key: s.id, style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } },
@@ -2163,7 +2274,7 @@ function App() {
                 React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: "30px 40px 44px", background: UI.appBg } }, tabContent))));
     }
     // ── PHONE LAYOUT (<640px) ──────────────────────────────────────────────────
-    return (React.createElement("div", { style: { minHeight: "100dvh", height: "100dvh", width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden" } },
+    return (React.createElement("div", { style: { height: "100%", minHeight: "100%", width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden" } },
         tab === "today" && React.createElement("div", { style: cardSurface({ margin: "8px 14px 0", border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}55` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 16 : 20, padding: compactFocus ? "8px 12px" : "14px 16px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }), onClick: !editMot ? startEditMot : undefined },
             React.createElement("div", { style: { display: compactFocus ? "none" : "block", position: "absolute", top: 0, left: 0, right: 0, height: 1, background: UI.border } }),
             React.createElement("div", { style: { fontSize: 11, fontWeight: 760, letterSpacing: 0.1, color: C.accent, marginBottom: compactFocus ? 0 : 5, display: compactFocus ? "inline" : "block", marginRight: compactFocus ? 8 : 0 } }, "Focus"),
