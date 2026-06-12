@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v57-tasks-overview-verified';
+const CACHE_NAME = 'adhd-planner-v58-task-card-today-fixes';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

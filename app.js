@@ -293,7 +293,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v57";
+const APP_VERSION = "v58";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -576,8 +576,21 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     const cardStyle = cardSurface({ borderRadius: 16, padding: "14px 14px", marginBottom: 10, borderLeft: task.done ? `3px solid ${C.dim}` : isOverdue ? `3px solid ${C.red}` : `3px solid ${p.color}`, opacity: task.done ? 0.48 : 1, transition: "transform 0.16s ease, opacity 0.25s ease, border-color 0.16s ease", cursor: "pointer" });
     const stop = e => { e.stopPropagation(); };
     const actionBtn = (label, title, color, onClick, bg) => React.createElement("button", { title, onClick: e => { e.stopPropagation(); e.preventDefault(); onClick(); }, onPointerDown: stop, onPointerUp: stop, style: actionButtonSurface(color, bg) }, label);
-    function rememberTap(e) { tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }
+    function isInteractiveTarget(e) {
+        return !!(e && e.target && e.target.closest && e.target.closest("button,input,textarea,select,a"));
+    }
+    function rememberTap(e) {
+        if (isInteractiveTarget(e)) {
+            tapRef.current = null;
+            return;
+        }
+        tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+    }
     function maybeOpenActions(e) {
+        if (isInteractiveTarget(e)) {
+            tapRef.current = null;
+            return;
+        }
         const start = tapRef.current;
         tapRef.current = null;
         if (!start)
@@ -614,8 +627,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
         metaItems.push(React.createElement("span", { key: "rec", style: { fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 0.2 } }, recurLabel[task.recurrence]));
     if (subs.length > 0)
         metaItems.push(React.createElement("span", { key: "subs", style: { fontSize: 9, color: subDone === subs.length ? C.green : C.muted, letterSpacing: 0.2 } }, "☑ ", subDone, "/", subs.length));
-    if (hasExtra)
-        metaItems.push(React.createElement("button", { key: "more", onClick: e => { e.stopPropagation(); setExpanded(v => !v); }, onPointerDown: stop, onPointerUp: stop, style: { border: "none", background: "transparent", padding: 0, margin: 0, cursor: "pointer", fontSize: 9, color: C.dim, fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲" : "▼"));
+    const expandButton = hasExtra ? React.createElement("button", { onClick: e => { e.stopPropagation(); e.preventDefault(); setExpanded(v => !v); }, onPointerDown: stop, onPointerUp: stop, title: expanded ? "Collapse" : "Expand", style: { width: 36, height: 36, borderRadius: 12, border: `1px solid ${C.border}`, background: UI.controlBg, color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲" : "▼") : React.createElement("div", { style: { width: 36, height: 36, flexShrink: 0 } });
     const detailChildren = [];
     if (task.description)
         detailChildren.push(React.createElement("div", { key: "desc", style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 8 } }, task.description));
@@ -631,9 +643,10 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     return React.createElement("div", { style: cardStyle, onPointerDown: rememberTap, onPointerUp: maybeOpenActions },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
             React.createElement("button", { onClick: e => { e.stopPropagation(); onToggle(task.id); }, onPointerDown: stop, onPointerUp: stop, style: { width: 22, height: 22, borderRadius: 6, border: task.done ? "none" : `1px solid ${isOverdue ? C.red : p.color}66`, background: task.done ? C.green : "transparent", cursor: "pointer", fontSize: 11, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: C.bg0, fontWeight: 800, boxShadow: task.done ? "none" : "none" } }, task.done ? "✓" : ""),
-            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+            React.createElement("div", { style: { flex: 1, minWidth: 0, paddingRight: 2 } },
                 React.createElement("div", { style: { fontSize: 13, fontWeight: 600, color: task.done ? C.muted : C.text, textDecoration: task.done ? "line-through" : "none", letterSpacing: 0.3 } }, task.text),
-                React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" } }, metaItems))),
+                React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" } }, metaItems)),
+            expandButton),
         expanded ? React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } }, detailChildren) : null);
 }
 
@@ -644,8 +657,21 @@ function TodayTaskCard({ task, onToggle, onDelete, onMoveUp, onMoveDown, canMove
     const hasDesc = !!(task.description && task.description.trim());
     const stop = e => e.stopPropagation();
     const actionBtn = (label, title, color, onClick, bg) => React.createElement("button", { title, onClick: e => { e.stopPropagation(); e.preventDefault(); onClick(); }, onPointerDown: stop, onPointerUp: stop, style: actionButtonSurface(color, bg) }, label);
-    function rememberTap(e) { tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() }; }
+    function isInteractiveTarget(e) {
+        return !!(e && e.target && e.target.closest && e.target.closest("button,input,textarea,select,a"));
+    }
+    function rememberTap(e) {
+        if (isInteractiveTarget(e)) {
+            tapRef.current = null;
+            return;
+        }
+        tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+    }
     function maybeOpenActions(e) {
+        if (isInteractiveTarget(e)) {
+            tapRef.current = null;
+            return;
+        }
         const start = tapRef.current;
         tapRef.current = null;
         if (!start) return;
@@ -1927,8 +1953,11 @@ function App() {
             exportPendingAppleChanges();
         else if (tab === "tasks" && taskSubTab === "overview")
             setTaskOverviewActionOpen(v => !v);
-        else if (tab === "tasks" && taskSubTab === "today")
-            selectedTodayCanEdit ? setShowTodayTaskForm(v => !v) : setSelectedTodayTaskDate(todayStr());
+        else if (tab === "tasks" && taskSubTab === "today") {
+            if (selectedTodayTaskDate !== todayStr())
+                setSelectedTodayTaskDate(todayStr());
+            setShowTodayTaskForm(true);
+        }
         else if (tab === "tasks" && activeTaskCategoryId)
             openAddTask(activeTaskCategoryId);
         else
