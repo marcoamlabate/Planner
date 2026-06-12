@@ -293,7 +293,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v53";
+const APP_VERSION = "v54";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -961,7 +961,7 @@ function App() {
     const [taskTagError, setTaskTagError] = useState("");
     const [taskCatFilter, setTaskCatFilter] = useState("all");
     const [taskViewFilter, setTaskViewFilter] = useState("all");
-    const [taskSort, setTaskSort] = useState("priority");
+    const [taskSort, setTaskSort] = useState("due");
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [showCatMgr, setShowCatMgr] = useState(false);
@@ -969,7 +969,8 @@ function App() {
     const emptyTask = () => { var _a, _b; return ({ text: "", description: "", priority: "medium", categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal", taskTag: "", imageUrl: "", imageUrls: [], dueDate: "", dueTime: "", alertEnabled: false, alertDate: "", alertTime: "", recurrence: "none", subtasks: [] }); };
     const [taskDraft, setTaskDraft] = useState(emptyTask);
     const [taskAlertOpen, setTaskAlertOpen] = useState(false);
-    const [taskSubTab, setTaskSubTab] = useState("today");
+    const [taskSubTab, setTaskSubTab] = useState("overview");
+    const [taskOverviewActionOpen, setTaskOverviewActionOpen] = useState(false);
     const [todayTasksByDate, setTodayTasksByDate] = useLocalState("adhd3_today_tasks", {});
     const [selectedTodayTaskDate, setSelectedTodayTaskDate] = useState(todayStr());
     const [showTodayTaskForm, setShowTodayTaskForm] = useState(false);
@@ -1091,7 +1092,16 @@ function App() {
         const removeIds = new Set(oldDoneTasks.map(t => t.id));
         setTasks(p => p.filter(t => !removeIds.has(t.id)));
     }, [rawTasks]);
-    function openAddTask() { setTaskDraft(emptyTask()); setTaskAlertOpen(false); setEditingTaskId(null); setShowTaskForm(true); }
+    function openAddTask(defaultCategoryId = "") {
+        const draft = emptyTask();
+        if (defaultCategoryId && categories.some(c => c.id === defaultCategoryId))
+            draft.categoryId = defaultCategoryId;
+        setTaskDraft(draft);
+        setTaskAlertOpen(false);
+        setEditingTaskId(null);
+        setShowTaskForm(true);
+        setShowTaskTagMgr(false);
+    }
     function openEditTask(t) {
         var _a, _b, _c, _d, _e;
         setTaskDraft({ text: t.text, description: t.description, priority: t.priority, categoryId: t.categoryId, taskTag: normalizeTaskTagName(t.taskTag || t.tagName || ""), imageUrl: getImages(t)[0] || "", imageUrls: getImages(t), dueDate: (_a = t.dueDate) !== null && _a !== void 0 ? _a : "", dueTime: (_d = t.dueTime) !== null && _d !== void 0 ? _d : "", alertEnabled: !!t.alertEnabled, alertDate: t.alertDate || "", alertTime: (_e = t.alertTime) !== null && _e !== void 0 ? _e : "", recurrence: (_b = t.recurrence) !== null && _b !== void 0 ? _b : "none", subtasks: (_c = t.subtasks) !== null && _c !== void 0 ? _c : [] });
@@ -1206,7 +1216,7 @@ function App() {
     }
     function copyTaskToToday(task) {
         addTodayTask(task.text || task.title || "Untitled task", task.description || "", todayStr(), task.id);
-        setTaskSubTab("today");
+        openTaskPage("today");
         setSelectedTodayTaskDate(todayStr());
     }
     function copyUnfinishedToToday(dateStr = selectedTodayTaskDate) {
@@ -1241,8 +1251,10 @@ function App() {
         setCatDraft({ name: "", color: ACCENT_COLORS[4] });
     }
     function deleteCategory(id) {
+        if (["homework", "tests", "personal", "work"].includes(id))
+            return;
         setCategories(p => p.filter(c => c.id !== id));
-        setTasks((p) => p.map(t => { var _a, _b; return t.categoryId === id ? { ...t, categoryId: (_b = (_a = categories[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "personal" } : t; }));
+        setTasks((p) => p.map(t => t.categoryId === id ? { ...t, categoryId: "personal" } : t));
     }
     function addTaskTag(autoSelect = false) {
         const raw = String(taskTagDraft || "").trim();
@@ -1745,30 +1757,34 @@ function App() {
         }
         return res;
     }, [rawAppts, weekStart]);
-    const baseRelevantTasks = taskCatFilter === "all" ? tasks : tasks.filter(t => t.categoryId === taskCatFilter);
-    const relevantTasks = [...baseRelevantTasks]
-        .filter(t => {
-        if (!showDoneTasks && t.done)
-            return false;
-        return taskViewFilter === "all" ? true
-            : taskViewFilter === "today" ? !t.done && isTodayStr(t.dueDate)
-                : taskViewFilter === "overdue" ? !t.done && t.dueDate && t.dueDate < todayStr()
-                    : taskViewFilter === "nodate" ? !t.done && !t.dueDate
-                        : taskViewFilter === "high" ? !t.done && t.priority === "high"
-                            : true;
-    })
-        .sort((a, b) => {
-        var _a, _b, _c, _d;
-        if (taskSort === "due")
-            return (a.dueDate || "9999-99-99").localeCompare(b.dueDate || "9999-99-99");
-        if (taskSort === "category")
-            return (((_a = categories.find(c => c.id === a.categoryId)) === null || _a === void 0 ? void 0 : _a.name) || "").localeCompare(((_b = categories.find(c => c.id === b.categoryId)) === null || _b === void 0 ? void 0 : _b.name) || "");
+    const isGeneralTaskPage = taskSubTab === "all" || String(taskSubTab || "").startsWith("cat:");
+    const activeTaskCategoryId = String(taskSubTab || "").startsWith("cat:") ? String(taskSubTab).slice(4) : "";
+    const activeTaskCategory = categories.find(c => c.id === activeTaskCategoryId) || null;
+    const isTasksOverview = taskSubTab === "overview";
+    const taskPageTitle = isTasksOverview ? "Tasks" : taskSubTab === "all" ? "All" : taskSubTab === "today" ? "Today" : (activeTaskCategory ? activeTaskCategory.name : "Tasks");
+    const taskPageAccent = activeTaskCategory ? activeTaskCategory.color : taskSubTab === "today" ? C.amber : C.accent;
+    function compareTasksByDue(a, b) {
+        const ad = a.dueDate || "9999-99-99";
+        const bd = b.dueDate || "9999-99-99";
+        if (ad !== bd)
+            return ad.localeCompare(bd);
+        const at = a.dueTime || "99:99";
+        const bt = b.dueTime || "99:99";
+        if (at !== bt)
+            return at.localeCompare(bt);
         const rank = { high: 0, medium: 1, low: 2 };
-        const pr = (((_c = rank[a.priority]) !== null && _c !== void 0 ? _c : 9) - ((_d = rank[b.priority]) !== null && _d !== void 0 ? _d : 9));
-        if (pr !== 0)
-            return pr;
-        return taskDateProximityKey(a) - taskDateProximityKey(b);
-    });
+        return (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9);
+    }
+    function compareTasksByPriority(a, b) {
+        const rank = { high: 0, medium: 1, low: 2 };
+        const pr = (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9);
+        return pr !== 0 ? pr : compareTasksByDue(a, b);
+    }
+    const baseRelevantTasks = activeTaskCategoryId ? tasks.filter(t => t.categoryId === activeTaskCategoryId) : tasks;
+    const relevantTasks = [...baseRelevantTasks]
+        .filter(t => showDoneTasks ? true : !t.done)
+        .sort((a, b) => taskSort === "priority" ? compareTasksByPriority(a, b) : compareTasksByDue(a, b));
+    const overdueTasks = relevantTasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr());
     const todayTasks = [...tasks].filter(t => showDoneTasks ? true : !t.done).sort((a, b) => {
         const ad = a.dueDate || "9999-99-99";
         const bd = b.dueDate || "9999-99-99";
@@ -1778,7 +1794,6 @@ function App() {
         return (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9);
     });
     const todayAppts = appts.filter(a => occursOn(a, todayStr())).sort((a, b) => (timeToMinutes(a.time) ?? 9999) - (timeToMinutes(b.time) ?? 9999));
-    const overdueTasks = relevantTasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr());
     const done = tasks.filter(t => t.done).length;
     const total = tasks.length;
     const pct = total ? Math.round((done / total) * 100) : 0;
@@ -1787,18 +1802,22 @@ function App() {
     const medsTakenToday = todayMedDoses.filter(x => x.done).length;
     const todayTaskDateOptions = [offsetDateStr(-2), offsetDateStr(-1), todayStr(), offsetDateStr(1), offsetDateStr(2)];
     const selectedTodayTasks = getTodayList(selectedTodayTaskDate);
+    const visibleTodayTasks = showDoneTasks ? selectedTodayTasks : selectedTodayTasks.filter(t => !t.done);
     const selectedTodayUnfinished = selectedTodayTasks.filter(t => !t.done);
     const selectedTodayDone = selectedTodayTasks.filter(t => t.done).length;
     const selectedTodayTotal = selectedTodayTasks.length;
     const selectedTodayPct = selectedTodayTotal ? Math.round((selectedTodayDone / selectedTodayTotal) * 100) : 0;
     const selectedTodayIsPast = selectedTodayTaskDate < todayStr();
     const selectedTodayCanEdit = selectedTodayTaskDate >= todayStr();
-    const taskProgressDone = taskSubTab === "today" ? selectedTodayDone : done;
-    const taskProgressTotal = taskSubTab === "today" ? selectedTodayTotal : total;
+    const generalProgressTasks = taskSubTab === "all" || taskSubTab === "overview" ? tasks : activeTaskCategoryId ? tasks.filter(t => t.categoryId === activeTaskCategoryId) : tasks;
+    const generalProgressDone = generalProgressTasks.filter(t => t.done).length;
+    const generalProgressTotal = generalProgressTasks.length;
+    const taskProgressDone = taskSubTab === "today" ? selectedTodayDone : generalProgressDone;
+    const taskProgressTotal = taskSubTab === "today" ? selectedTodayTotal : generalProgressTotal;
     const taskProgressPct = taskProgressTotal ? Math.round((taskProgressDone / taskProgressTotal) * 100) : 0;
-    const taskProgressLabel = taskSubTab === "today" ? (selectedTodayTaskDate === todayStr() ? "Today Tasks" : weekdayLabel(selectedTodayTaskDate) + " Tasks") : "General Tasks";
+    const taskProgressLabel = taskSubTab === "overview" ? "All Tasks" : taskSubTab === "today" ? (selectedTodayTaskDate === todayStr() ? "Today Tasks" : weekdayLabel(selectedTodayTaskDate) + " Tasks") : taskPageTitle + " Tasks";
     const pendingAppleList = Object.values(pendingAppleChanges || {}).filter(Boolean).sort((a, b) => String(b.changedAt || "").localeCompare(String(a.changedAt || "")));
-    const openTaskForTodayDashboard = task => { setTab("tasks"); setTaskSubTab("general"); openEditTask(task); };
+    const openTaskForTodayDashboard = task => { setTab("tasks"); openTaskPage("all"); openEditTask(task); };
     const openEventForTodayDashboard = appt => { setTab("calendar"); openEditAppt(appt); };
     const sortDashboardTasks = list => [...list].sort((a, b) => {
         const ak = taskDateProximityKey(a), bk = taskDateProximityKey(b);
@@ -1812,6 +1831,85 @@ function App() {
     const dashboardLaterTasks = sortDashboardTasks(tasks.filter(t => !t.done && (!t.dueDate || t.dueDate > todayStr())));
     const dashboardNowTask = dashboardOverdueTasks[0] || dashboardTodayTasks[0] || dashboardLaterTasks[0] || null;
     const dashboardNextTasks = [...dashboardOverdueTasks, ...dashboardTodayTasks, ...dashboardLaterTasks].filter(t => !dashboardNowTask || t.id !== dashboardNowTask.id).slice(0, 2);
+    function openTaskPage(page) {
+        setTaskSubTab(page);
+        setTaskOverviewActionOpen(false);
+        setShowTaskForm(false);
+        setEditingTaskId(null);
+        setShowCatMgr(false);
+        setShowTaskTagMgr(false);
+        setTaskViewFilter("all");
+        if (page === "all" || page === "overview")
+            setTaskCatFilter("all");
+        else if (String(page || "").startsWith("cat:"))
+            setTaskCatFilter(String(page).slice(4));
+        else if (page === "today")
+            setSelectedTodayTaskDate(todayStr());
+    }
+    const taskOpenCount = tasks.filter(t => !t.done).length;
+    const todayOpenCount = getTodayList(todayStr()).filter(t => !t.done).length;
+    function countForCategory(catId) {
+        return tasks.filter(t => !t.done && t.categoryId === catId).length;
+    }
+    function renderTaskOverviewRow({ title, subtitle, count, color, onClick, special }) {
+        return React.createElement("button", { onClick, style: cardSurface({ width: "100%", padding: "12px 14px", borderRadius: 16, marginBottom: 8, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, textAlign: "left", fontFamily: "inherit" }) },
+            React.createElement("div", { style: { width: 30, height: 30, borderRadius: 10, background: (color || C.accent) + "1A", color: color || C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: special ? 15 : 12, flexShrink: 0 } }, special || ""),
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 760, lineHeight: 1.25 } }, title),
+                subtitle ? React.createElement("div", { style: { color: C.muted, fontSize: 10, marginTop: 2, fontWeight: 600 } }, subtitle) : null),
+            React.createElement("div", { style: { color: C.muted, fontSize: 14, fontWeight: 800, minWidth: 24, textAlign: "right" } }, count));
+    }
+    function renderCategoryManager() {
+        const defaultIds = ["homework", "tests", "personal", "work"];
+        return React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 14, marginBottom: 14 }) },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+                React.createElement("div", { style: { fontSize: 12, fontWeight: 800, color: C.text } }, "Categories"),
+                React.createElement("button", { onClick: () => setShowCatMgr(false), style: { background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 18, fontWeight: 700 } }, "×")),
+            categories.map(cat => React.createElement("div", { key: cat.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
+                    React.createElement("div", { style: { width: 10, height: 10, borderRadius: "50%", background: cat.color } }),
+                    React.createElement("span", { style: { fontSize: 12, color: C.text, fontWeight: 650 } }, cat.name)),
+                !defaultIds.includes(cat.id) ? React.createElement("button", { onClick: () => deleteCategory(cat.id), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 16, fontWeight: 700 } }, "×") : null)),
+            React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, alignItems: "center", flexWrap: "wrap" } },
+                React.createElement("input", { placeholder: "New category", value: catDraft.name, onChange: e => setCatDraft(d => ({ ...d, name: e.target.value })), onKeyDown: e => e.key === "Enter" && addCategory(), style: { ...inp, flex: 1, minWidth: 130, padding: "8px 10px", fontSize: 12 } }),
+                React.createElement("div", { style: { display: "flex", gap: 3 } }, ACCENT_COLORS.slice(0, 5).map(c => React.createElement("button", { key: c, onClick: () => setCatDraft(d => ({ ...d, color: c })), style: { width: 18, height: 18, borderRadius: 4, background: c, border: "none", cursor: "pointer", outline: catDraft.color === c ? `2px solid white` : "none", outlineOffset: 1 } }))),
+                React.createElement("button", { onClick: addCategory, style: { padding: "8px 11px", borderRadius: 9, border: "none", background: C.accent, color: C.text, fontWeight: 750, fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "Add")));
+    }
+    function renderTaskOverview() {
+        return React.createElement("div", null,
+            React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10 } },
+                React.createElement("div", null,
+                    React.createElement("div", { style: { color: C.text, fontSize: 22, fontWeight: 780, letterSpacing: -0.2 } }, "Tasks"),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 11, marginTop: 2 } }, "Lists and smart pages")),
+                React.createElement("button", { onClick: () => setShowTaskTagMgr(v => !v), title: "Task Tags", style: { width: 36, height: 36, borderRadius: 12, border: `1px solid ${showTaskTagMgr ? C.accent : C.border}`, background: showTaskTagMgr ? C.accent + "16" : UI.controlBg, color: showTaskTagMgr ? C.accent : C.muted, fontWeight: 900, fontSize: 15, fontFamily: "inherit", cursor: "pointer" } }, "#")),
+            taskOverviewActionOpen && React.createElement("div", { style: cardSurface({ borderRadius: 16, padding: 10, marginBottom: 12 }) },
+                React.createElement("button", { onClick: () => { setShowCatMgr(true); setShowTaskTagMgr(false); setTaskOverviewActionOpen(false); }, style: { width: "100%", padding: 11, borderRadius: 12, border: "none", background: UI.controlBg, color: C.text, fontWeight: 750, fontSize: 13, fontFamily: "inherit", cursor: "pointer", marginBottom: 6, textAlign: "left" } }, "New Category"),
+                React.createElement("button", { onClick: () => { setShowTaskTagMgr(true); setShowCatMgr(false); setTaskOverviewActionOpen(false); }, style: { width: "100%", padding: 11, borderRadius: 12, border: "none", background: UI.controlBg, color: C.text, fontWeight: 750, fontSize: 13, fontFamily: "inherit", cursor: "pointer", textAlign: "left" } }, "New Tag")),
+            showTaskTagMgr && !showTaskForm && renderTaskTagManager(false),
+            showCatMgr && !showTaskForm && renderCategoryManager(),
+            React.createElement("div", { style: { marginBottom: 12 } },
+                renderTaskOverviewRow({ title: "All", subtitle: "All general tasks", count: taskOpenCount, color: C.accent, special: "∞", onClick: () => openTaskPage("all") }),
+                renderTaskOverviewRow({ title: "Today", subtitle: "Daily simple list", count: todayOpenCount, color: C.amber, special: "✓", onClick: () => openTaskPage("today") })),
+            React.createElement("div", { style: { marginTop: 6 } }, categories.map(cat => renderTaskOverviewRow({ title: cat.name, subtitle: "Task list", count: countForCategory(cat.id), color: cat.color, special: "", onClick: () => openTaskPage("cat:" + cat.id) }))));
+    }
+    function renderTaskPageTop() {
+        if (taskSubTab === "overview")
+            return null;
+        return React.createElement("div", { style: { marginBottom: 14 } },
+            React.createElement("button", { onClick: () => openTaskPage("overview"), style: { border: "none", background: "transparent", color: C.accent, cursor: "pointer", fontWeight: 760, fontSize: 12, fontFamily: "inherit", padding: "0 0 8px" } }, "‹ Tasks"),
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 } },
+                React.createElement("div", { style: { minWidth: 0 } },
+                    React.createElement("div", { style: { color: taskPageAccent, fontSize: 22, fontWeight: 780, lineHeight: 1.1, letterSpacing: -0.2 } }, taskPageTitle),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 10, marginTop: 4 } }, taskSubTab === "today" ? "Daily simple list" : "General tasks")),
+                isGeneralTaskPage && React.createElement("select", { value: taskSort, onChange: e => setTaskSort(e.target.value), style: { ...inp, width: "auto", padding: "7px 9px", fontSize: 10, color: C.muted } },
+                    React.createElement("option", { value: "due" }, "Sort: Due Date"),
+                    React.createElement("option", { value: "priority" }, "Sort: Priority"))));
+    }
+    function renderTasksBackButton() {
+        if (taskSubTab === "overview")
+            return null;
+        return React.createElement("button", { onClick: () => openTaskPage("overview"), style: { position: "sticky", bottom: 0, marginTop: 16, padding: "10px 14px", borderRadius: 14, border: `1px solid ${C.border}`, background: UI.panelBg, color: C.text, cursor: "pointer", fontWeight: 760, fontSize: 12, fontFamily: "inherit", boxShadow: UI.softShadow, zIndex: 5 } }, "‹ Tasks");
+    }
     function primaryAction() {
         if (tab === "calendar")
             openAddAppt();
@@ -1821,8 +1919,12 @@ function App() {
             openAddNote();
         else if (tab === "sync")
             exportPendingAppleChanges();
+        else if (tab === "tasks" && taskSubTab === "overview")
+            setTaskOverviewActionOpen(v => !v);
         else if (tab === "tasks" && taskSubTab === "today")
             selectedTodayCanEdit ? setShowTodayTaskForm(v => !v) : setSelectedTodayTaskDate(todayStr());
+        else if (tab === "tasks" && activeTaskCategoryId)
+            openAddTask(activeTaskCategoryId);
         else
             openAddTask();
     }
@@ -1853,7 +1955,7 @@ function App() {
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 8 } }, "Today"),
                 React.createElement("div", { style: { color: C.text, fontSize: 18, fontWeight: 800, letterSpacing: 0.4 } }, today.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })),
                 React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" } },
-                    React.createElement("button", { onClick: () => { setTab("tasks"); setTaskSubTab("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Tasks"),
+                    React.createElement("button", { onClick: () => { setTab("tasks"); openTaskPage("today"); setSelectedTodayTaskDate(todayStr()); }, style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Tasks"),
                     React.createElement("button", { onClick: () => setTab("calendar"), style: { flex: 1, minWidth: 120, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg3, color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Calendar"))),
             React.createElement(SectionHeader, { icon: "💊", label: "MEDS TODAY", color: todayMedDoses.length && medsTakenToday === todayMedDoses.length ? C.green : todayMedDoses.length ? C.amber : C.dim }),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, marginBottom: 14 }) },
@@ -1893,10 +1995,8 @@ function App() {
                     React.createElement("button", { onClick: () => { var _a; return (_a = importRef.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { flex: 1, padding: 11, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Import")),
                 React.createElement("div", { style: { textAlign: "center", marginTop: 14, paddingTop: 12, borderTop: `1px solid ${C.border}`, fontSize: 9, color: C.dim, fontWeight: 800, letterSpacing: 0.4 } }, "App Version ", APP_VERSION)))),
         !searchOpen && tab === "tasks" && (React.createElement("div", null,
-            React.createElement("div", { style: controlSurface({ display: "flex", gap: 6, marginBottom: 14, borderRadius: 16, padding: 4 }) },
-                [["today", "Today"], ["general", "General"]].map(([key, label]) => React.createElement("button", { key, onClick: () => setTaskSubTab(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 900, fontSize: 10, letterSpacing: 0.2, fontFamily: "inherit", background: taskSubTab === key ? C.accent + "20" : "transparent", color: taskSubTab === key ? C.accent : C.muted, boxShadow: taskSubTab === key ? "none" : "none" } }, label)),
-                React.createElement("button", { onClick: () => setShowTaskTagMgr(v => !v), title: "Task Tags", style: { width: 36, borderRadius: 9, border: `1px solid ${showTaskTagMgr ? C.accent : C.border}`, background: showTaskTagMgr ? C.accent + "16" : "transparent", cursor: "pointer", color: showTaskTagMgr ? C.accent : C.muted, fontWeight: 900, fontSize: 13, fontFamily: "inherit", lineHeight: 1 } }, "#")),
-            showTaskTagMgr && !showTaskForm && renderTaskTagManager(false),
+            renderTaskPageTop(),
+            taskSubTab === "overview" && renderTaskOverview(),
             taskSubTab === "today" && (React.createElement("div", null,
                 React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" } },
                     todayTaskDateOptions.map((d, i) => React.createElement("button", { key: d, onClick: () => { setSelectedTodayTaskDate(d); setShowTodayTaskForm(false); }, style: { padding: "6px 10px", borderRadius: 10, border: selectedTodayTaskDate === d ? `1px solid ${C.amber}` : `1px solid ${C.border}`, background: selectedTodayTaskDate === d ? C.amber + "16" : UI.controlBg, color: selectedTodayTaskDate === d ? C.amber : C.muted, fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, cursor: "pointer" } }, d === todayStr() ? "Today" : weekdayLabel(d)))),
@@ -1909,40 +2009,24 @@ function App() {
                     React.createElement("div", { style: { display: "flex", gap: 8 } },
                         React.createElement("button", { onClick: () => { setTodayTaskDraft(emptyTodayTask()); setShowTodayTaskForm(false); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Cancel"),
                         React.createElement("button", { onClick: saveTodayTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Add"))),
-                selectedTodayTasks.length ? selectedTodayTasks.map((t, i) => React.createElement(TodayTaskCard, { key: t.id, task: t, onToggle: id => toggleTodayTask(id, selectedTodayTaskDate), onDelete: id => deleteTodayTask(id, selectedTodayTaskDate), onMoveUp: () => moveTodayTask(t.id, -1, selectedTodayTaskDate), onMoveDown: () => moveTodayTask(t.id, 1, selectedTodayTaskDate), canMoveUp: i > 0, canMoveDown: i < selectedTodayTasks.length - 1 }))
-                    : React.createElement("div", { style: { textAlign: "center", padding: "34px 0", color: C.muted } }, React.createElement("div", { style: { fontSize: 24, marginBottom: 10 } }, "[ ]"), React.createElement("div", { style: { fontSize: 11, fontWeight: 800, letterSpacing: 0.4 } }, selectedTodayTaskDate === todayStr() ? "Today is empty" : "No tasks on this day")))),
-            taskSubTab === "general" && (React.createElement(React.Fragment, null,
-            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
-                React.createElement(CatPill, { label: "All", active: taskCatFilter === "all", color: C.accent, onClick: () => setTaskCatFilter("all") }),
-                categories.map(cat => React.createElement(CatPill, { key: cat.id, label: cat.name, active: taskCatFilter === cat.id, color: cat.color, onClick: () => setTaskCatFilter(cat.id) })),
-                React.createElement("button", { onClick: () => setShowCatMgr(!showCatMgr), style: { padding: "4px 8px", borderRadius: 20, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.dim, fontWeight: 700, fontSize: 9, fontFamily: "inherit" } }, "\u2699")),
-            React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" } },
-                [["all", "All"], ["today", "Today"], ["overdue", "Overdue"], ["nodate", "No Date"], ["high", "High"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setTaskViewFilter(key), style: { padding: "5px 9px", borderRadius: 10, border: taskViewFilter === key ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: taskViewFilter === key ? C.accent + "16" : UI.controlBg, color: taskViewFilter === key ? C.accent : C.muted, fontWeight: 700, fontSize: 9, fontFamily: "inherit", letterSpacing: 0.2 } }, label))),
-                React.createElement("select", { value: taskSort, onChange: e => setTaskSort(e.target.value), style: { ...inp, width: "auto", padding: "5px 8px", fontSize: 9, color: C.muted } },
-                    React.createElement("option", { value: "priority" }, "Sort: Priority"),
-                    React.createElement("option", { value: "due" }, "Sort: Due Date"),
-                    React.createElement("option", { value: "category" }, "Sort: Category"))),
-            showCatMgr && (React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 14, marginBottom: 14 }) },
-                React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent, marginBottom: 10 } }, "// CATEGORIES"),
-                categories.map(cat => (React.createElement("div", { key: cat.id, style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 } },
-                    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } },
-                        React.createElement("div", { style: { width: 10, height: 10, borderRadius: "50%", background: cat.color } }),
-                        React.createElement("span", { style: { fontSize: 12, color: C.text } }, cat.name)),
-                    React.createElement("button", { onClick: () => deleteCategory(cat.id), style: { background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 16, fontWeight: 700, opacity: ["personal", "work", "college"].includes(cat.id) ? 0.2 : 1, pointerEvents: ["personal", "work", "college"].includes(cat.id) ? "none" : "auto" } }, "\u00D7")))),
-                React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, alignItems: "center" } },
-                    React.createElement("input", { placeholder: "New category", value: catDraft.name, onChange: e => setCatDraft(d => ({ ...d, name: e.target.value })), onKeyDown: e => e.key === "Enter" && addCategory(), style: { ...inp, flex: 1, padding: "7px 10px", fontSize: 12 } }),
-                    React.createElement("div", { style: { display: "flex", gap: 3 } }, ACCENT_COLORS.slice(0, 5).map(c => React.createElement("button", { key: c, onClick: () => setCatDraft(d => ({ ...d, color: c })), style: { width: 18, height: 18, borderRadius: 4, background: c, border: "none", cursor: "pointer", outline: catDraft.color === c ? `2px solid white` : "none", outlineOffset: 1 } }))),
-                    React.createElement("button", { onClick: addCategory, style: { padding: "7px 10px", borderRadius: 8, border: "none", background: C.accent, color: C.text, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit" } }, "+")))),
+                visibleTodayTasks.length ? visibleTodayTasks.map((t, i) => React.createElement(TodayTaskCard, { key: t.id, task: t, onToggle: id => toggleTodayTask(id, selectedTodayTaskDate), onDelete: id => deleteTodayTask(id, selectedTodayTaskDate), onMoveUp: () => moveTodayTask(t.id, -1, selectedTodayTaskDate), onMoveDown: () => moveTodayTask(t.id, 1, selectedTodayTaskDate), canMoveUp: i > 0, canMoveDown: i < visibleTodayTasks.length - 1 }))
+                    : React.createElement("div", { style: { textAlign: "center", padding: "34px 0", color: C.muted } }, React.createElement("div", { style: { fontSize: 24, marginBottom: 10 } }, "[ ]"), React.createElement("div", { style: { fontSize: 11, fontWeight: 800, letterSpacing: 0.4 } }, selectedTodayTaskDate === todayStr() ? "Today is empty" : "No tasks on this day"))),
+                React.createElement("button", { onClick: () => setShowDoneTasks(v => !v), style: { width: "100%", marginTop: 14, padding: 10, borderRadius: 12, border: `1px solid ${showDoneTasks ? C.green : C.border}`, background: showDoneTasks ? C.green + "22" : C.bg2, color: showDoneTasks ? C.green : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, showDoneTasks ? "Hide Done Tasks" : "Show Done Tasks"),
+                renderTasksBackButton())),
+            isGeneralTaskPage && (React.createElement(React.Fragment, null,
+            showCatMgr && !showTaskForm && renderCategoryManager(),
             overdueTasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u26A0", label: "OVERDUE", color: C.red }),
                 overdueTasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday })))),
-            ["high", "medium", "low"].map(pri => {
-                const list = relevantTasks.filter(t => t.priority === pri && !t.done && !(t.dueDate && t.dueDate < todayStr()));
+            (taskSort === "due" ? ["due"] : ["high", "medium", "low"]).map(pri => {
+                const list = taskSort === "due"
+                    ? relevantTasks.filter(t => !t.done && !(t.dueDate && t.dueDate < todayStr()))
+                    : relevantTasks.filter(t => t.priority === pri && !t.done && !(t.dueDate && t.dueDate < todayStr()));
                 if (!list.length)
                     return null;
-                const p = PRIORITY[pri];
+                const p = taskSort === "due" ? { icon: "[ ]", label: "Tasks", color: taskPageAccent } : PRIORITY[pri];
                 return (React.createElement("div", { key: pri, style: { marginBottom: 16 } },
-                    React.createElement(SectionHeader, { icon: p.icon, label: `${p.label} PRIORITY`, color: p.color }),
+                    React.createElement(SectionHeader, { icon: p.icon, label: taskSort === "due" ? "TASKS" : `${p.label} PRIORITY`, color: p.color }),
                     list.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday }))));
             }),
             relevantTasks.filter(t => t.done).length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
@@ -1993,8 +2077,9 @@ function App() {
                     React.createElement("button", { onClick: () => { setShowTaskForm(false); setEditingTaskId(null); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontWeight: 700, fontFamily: "inherit", color: C.muted, fontSize: 11, letterSpacing: 0.2 } }, "Cancel"),
                     React.createElement("button", { type: "button", onClick: saveTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.accent, color: C.text, cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, editingTaskId ? "Save Changes" : "Add Task")),
                 React.createElement("button", { type: "button", onClick: saveTaskAndExport, style: { width: "100%", marginTop: 8, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, editingTaskId ? "Save + Send to Apple" : "Add Task + Send to Apple"))) : null,
-            React.createElement("button", { onClick: () => setShowDoneTasks(v => !v), style: { width: "100%", marginTop: 14, padding: 10, borderRadius: 12, border: `1px solid ${showDoneTasks ? C.green : C.border}`, background: showDoneTasks ? C.green + "22" : C.bg2, color: showDoneTasks ? C.green : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, showDoneTasks ? "Hide Done Tasks" : "Show Done Tasks")
-            )))),
+            React.createElement("button", { onClick: () => setShowDoneTasks(v => !v), style: { width: "100%", marginTop: 14, padding: 10, borderRadius: 12, border: `1px solid ${showDoneTasks ? C.green : C.border}`, background: showDoneTasks ? C.green + "22" : C.bg2, color: showDoneTasks ? C.green : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, showDoneTasks ? "Hide Done Tasks" : "Show Done Tasks"),
+            renderTasksBackButton()
+            ))),
         !searchOpen && tab === "calendar" && (React.createElement("div", null,
             React.createElement("div", { style: controlSurface({ display: "flex", gap: 4, marginBottom: 14, borderRadius: 16, padding: 4 }) }, [["grid", "Month"], ["week", "Week"], ["list", "List"]].map(([key, label]) => (React.createElement("button", { key: key, onClick: () => setCalView(key), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 9, letterSpacing: 0.2, fontFamily: "inherit", background: calView === key ? C.accent + "20" : "transparent", color: calView === key ? C.accent : C.muted, boxShadow: calView === key ? "none" : "none" } }, label)))),
             calView === "grid" && (React.createElement(React.Fragment, null,
