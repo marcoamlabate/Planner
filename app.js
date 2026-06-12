@@ -41,6 +41,8 @@ function ActionIcon({ name, size = 23 }) {
         return React.createElement("svg", { ...common, strokeWidth: 2.8 }, React.createElement("path", { d: "M4 20h4.5L19.2 9.3a2.4 2.4 0 0 0-3.4-3.4L5.1 16.6 4 20Z" }), React.createElement("path", { d: "M13.5 8.2l2.3 2.3" }));
     if (name === "delete")
         return React.createElement("svg", common, React.createElement("path", { d: "M7 7l10 10" }), React.createElement("path", { d: "M17 7 7 17" }));
+    if (name === "trash")
+        return React.createElement("svg", common, React.createElement("path", { d: "M4 7h16" }), React.createElement("path", { d: "M10 11v6" }), React.createElement("path", { d: "M14 11v6" }), React.createElement("path", { d: "M6 7l1 14h10l1-14" }), React.createElement("path", { d: "M9 7V4h6v3" }));
     if (name === "plus")
         return React.createElement("svg", common, React.createElement("path", { d: "M12 5v14" }), React.createElement("path", { d: "M5 12h14" }));
     return React.createElement("span", null, name);
@@ -293,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v60";
+const APP_VERSION = "v61";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -706,18 +708,22 @@ function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
     const hasExtra = !!(appt.description || apptImages.length);
     const recurLabel = { daily: "↺ Daily", weekly: "↺ Weekly", monthly: "↺ Monthly" };
     const cardStyle = cardSurface({ borderRadius: 16, padding: "14px 14px", marginBottom: 10, borderLeft: `3px solid ${appt.color}`, cursor: "pointer" });
-    const actionBtn = (label, title, color, onClick, bg) => React.createElement("button", { title, onClick: e => { e.stopPropagation(); e.preventDefault(); onClick(); }, onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: actionButtonSurface(color, bg) }, label);
+    const stop = e => e.stopPropagation();
+    const actionBtn = (label, title, color, onClick, bg) => React.createElement("button", { title, onClick: e => { e.stopPropagation(); e.preventDefault(); onClick(); }, onPointerDown: stop, onPointerUp: stop, style: actionButtonSurface(color, bg) }, label);
+    function isInteractiveTarget(e) {
+        return !!(e && e.target && e.target.closest && e.target.closest("button,input,textarea,select,a"));
+    }
     function rememberTap(e) {
+        if (isInteractiveTarget(e)) { tapRef.current = null; return; }
         tapRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
     }
     function maybeOpenActions(e) {
+        if (isInteractiveTarget(e)) { tapRef.current = null; return; }
         const start = tapRef.current;
         tapRef.current = null;
-        if (!start)
-            return;
+        if (!start) return;
         const moved = Math.abs(e.clientX - start.x) + Math.abs(e.clientY - start.y);
-        if (moved <= 12 && Date.now() - start.t < 700)
-            setActionMode(true);
+        if (moved <= 12 && Date.now() - start.t < 700) setActionMode(true);
     }
     if (actionMode) {
         return React.createElement("div", { style: { ...cardStyle, minHeight: 64, display: "flex", alignItems: "center" } },
@@ -729,18 +735,19 @@ function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
                     actionBtn(React.createElement(ActionIcon, { name: "edit" }), "Edit", C.text, () => { onEdit(appt); setActionMode(false); }),
                     actionBtn(React.createElement(ActionIcon, { name: "delete" }), "Delete", C.red, () => { onDelete(appt.id); setActionMode(false); }, C.red + "14"))));
     }
+    const expandButton = hasExtra ? React.createElement("button", { onClick: e => { e.stopPropagation(); e.preventDefault(); setExpanded(v => !v); }, onPointerDown: stop, onPointerUp: stop, title: expanded ? "Collapse" : "Expand", style: { width: 36, height: 36, borderRadius: 12, border: `1px solid ${C.border}`, background: UI.controlBg, color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲" : "▼") : React.createElement("div", { style: { width: 36, height: 36, flexShrink: 0 } });
     return (React.createElement("div", { style: cardStyle, onPointerDown: rememberTap, onPointerUp: maybeOpenActions },
         React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12 } },
             React.createElement("div", { style: { background: appt.color + "18", borderRadius: 8, padding: "6px 8px", textAlign: "center", minWidth: 38, flexShrink: 0 } },
                 React.createElement("div", { style: { fontSize: 8, fontWeight: 700, color: appt.color, letterSpacing: 0.2 } }, MONTHS[d.getMonth()]),
                 React.createElement("div", { style: { fontSize: 20, fontWeight: 900, color: appt.color, lineHeight: 1.1 } }, d.getDate())),
-            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+            React.createElement("div", { style: { flex: 1, minWidth: 0, paddingRight: 2 } },
                 React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, appt.title),
                 React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap", alignItems: "center" } },
                     appt.time && React.createElement("span", { style: { fontSize: 10, color: C.muted, letterSpacing: 0.2 } }, appt.time + (appt.endTime ? `–${appt.endTime}` : "")),
                     appt.categoryText && React.createElement("span", { style: { fontSize: 9, color: appt.color, background: appt.color + "18", fontWeight: 800, letterSpacing: 0.2, borderRadius: 10, padding: "1px 6px" } }, appt.categoryText),
-                    appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 0.2 } }, recurLabel[appt.recurrence]),
-                    hasExtra && React.createElement("button", { onClick: e => { e.stopPropagation(); setExpanded(v => !v); }, onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: { border: "none", background: "transparent", padding: 0, margin: 0, cursor: "pointer", fontSize: 9, color: C.dim, fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲ less" : "▼ more")))) ,
+                    appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 0.2 } }, recurLabel[appt.recurrence]))),
+            expandButton),
         expanded && hasExtra && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
             appt.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: apptImages.length ? 8 : 0 } }, appt.description),
             apptImages.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: appt.description ? 8 : 0 } }, apptImages.map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(url); }, style: { width: "100%", aspectRatio: "1", borderRadius: 8, objectFit: "cover", display: "block", cursor: "zoom-in" } })))))));
@@ -1017,6 +1024,10 @@ function App() {
     const [pendingAppleChanges, setPendingAppleChanges] = useLocalState("adhd3_pending_apple_changes", {});
     const [showDoneTasks, setShowDoneTasks] = useLocalState("adhd3_show_done_tasks", false);
     const pendingAppleCount = pendingAppleChangeCount(pendingAppleChanges);
+    const [activePendingChangeId, setActivePendingChangeId] = useState(null);
+    const [searchReturnSnapshot, setSearchReturnSnapshot] = useState(null);
+    const [swipeOffset, setSwipeOffset] = useState(0);
+    const swipeBackRef = useRef(null);
     const [calView, setCalView] = useState("grid");
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -1061,6 +1072,100 @@ function App() {
             notes: notes.filter(n => { var _a, _b; return n.title.toLowerCase().includes(q) || ((_a = n.content) === null || _a === void 0 ? void 0 : _a.toLowerCase().includes(q)) || ((_b = n.topics) === null || _b === void 0 ? void 0 : _b.some(t => t.toLowerCase().includes(q))); }),
         };
     }, [searchQuery, rawTasks, rawAppts, notes]);
+    function getNavigationSnapshot() {
+        return { tab, taskSubTab, selectedTodayTaskDate, calView, selectedApptId, showApptForm, editingApptId, noteView, selectedNoteId, editingNoteId };
+    }
+    function restoreNavigationSnapshot(snapshot) {
+        const snap = snapshot || { tab: "today" };
+        setTab(snap.tab || "today");
+        if (snap.taskSubTab) setTaskSubTab(snap.taskSubTab);
+        if (snap.selectedTodayTaskDate) setSelectedTodayTaskDate(snap.selectedTodayTaskDate);
+        if (snap.calView) setCalView(snap.calView);
+        setSelectedApptId(snap.selectedApptId || null);
+        setShowApptForm(!!snap.showApptForm);
+        setEditingApptId(snap.editingApptId ?? null);
+        setNoteView(snap.noteView || "list");
+        setSelectedNoteId(snap.selectedNoteId || null);
+        setEditingNoteId(snap.editingNoteId ?? null);
+    }
+    function openSearch() {
+        if (!searchOpen) setSearchReturnSnapshot(getNavigationSnapshot());
+        setSearchOpen(true);
+        setSearchQuery("");
+    }
+    function closeSearch() {
+        setSearchOpen(false);
+        setSearchQuery("");
+        restoreNavigationSnapshot(searchReturnSnapshot || { tab: "today" });
+        setSearchReturnSnapshot(null);
+    }
+    function goBackOneLevel() {
+        if (searchOpen) { closeSearch(); return; }
+        if (tab === "today") return;
+        if (tab === "tasks") {
+            if (taskSubTab && taskSubTab !== "overview") { openTaskPage("overview"); return; }
+            setTab("today");
+            return;
+        }
+        if (tab === "calendar") {
+            if (showApptForm) { setShowApptForm(false); setEditingApptId(null); return; }
+            if (selectedApptId) { setSelectedApptId(null); return; }
+            setTab("today");
+            return;
+        }
+        if (tab === "notes") {
+            if (noteView !== "list") { setNoteView("list"); setSelectedNoteId(null); setEditingNoteId(null); return; }
+            setTab("today");
+            return;
+        }
+        if (tab === "meds") {
+            if (showMedForm) { setShowMedForm(false); setEditingMedId(null); return; }
+            setTab("today");
+            return;
+        }
+        if (tab === "sync") { setTab("today"); return; }
+        setTab("today");
+    }
+    function isSwipeBlockedTarget(target) {
+        return !!(target && target.closest && target.closest("input,textarea,select,button,a,[contenteditable='true'],[data-no-swipe-back='true'],.no-swipe-back"));
+    }
+    function handleSwipeBackStart(e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        if (touch.clientX > 24 || isSwipeBlockedTarget(e.target)) return;
+        if (tab === "today" && !searchOpen) return;
+        swipeBackRef.current = { startX: touch.clientX, startY: touch.clientY, lastX: touch.clientX, startTime: Date.now(), locked: false, canceled: false };
+    }
+    function handleSwipeBackMove(e) {
+        const st = swipeBackRef.current;
+        if (!st || !e.touches || e.touches.length !== 1 || st.canceled) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - st.startX;
+        const dy = touch.clientY - st.startY;
+        st.lastX = touch.clientX;
+        if (dx < 0) { st.canceled = true; setSwipeOffset(0); return; }
+        if (!st.locked) {
+            if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { st.canceled = true; setSwipeOffset(0); return; }
+            if (dx > 12 && dx > Math.abs(dy) * 1.5) st.locked = true;
+        }
+        if (st.locked) setSwipeOffset(Math.min(36, Math.max(0, dx) * 0.35));
+    }
+    function handleSwipeBackEnd() {
+        const st = swipeBackRef.current;
+        swipeBackRef.current = null;
+        if (!st || st.canceled) { setSwipeOffset(0); return; }
+        const dx = Math.max(0, (st.lastX || st.startX) - st.startX);
+        const dt = Math.max(1, Date.now() - st.startTime);
+        const velocity = dx / dt;
+        const threshold = Math.min(100, Math.max(80, window.innerWidth * 0.28));
+        setSwipeOffset(0);
+        if (st.locked && (dx >= threshold || (dx >= 55 && velocity > 0.55))) goBackOneLevel();
+    }
+    function clearPendingAppleChange(id) {
+        if (!id) return;
+        clearPendingAppleChanges([id]);
+        setActivePendingChangeId(null);
+    }
     function clearPendingAppleChanges(ids) {
         const idSet = new Set((ids || []).filter(Boolean));
         if (!idSet.size)
@@ -2078,6 +2183,7 @@ function App() {
             openTaskPage("overview");
         setSearchOpen(false);
         setSearchQuery("");
+        setSearchReturnSnapshot(null);
     }
     function shouldShowMainBack() {
         if (tab === "today" || searchOpen)
@@ -2097,6 +2203,10 @@ function App() {
             return null;
         return React.createElement("button", { onClick: () => goSection("today"), style: { border: "none", background: "transparent", color: C.accent, cursor: "pointer", fontWeight: 760, fontSize: 13, fontFamily: "inherit", padding: "0 0 14px", display: "inline-flex", alignItems: "center", gap: 4 } }, "‹ Main");
     }
+    function renderSearchBackButton() {
+        if (!searchOpen) return null;
+        return React.createElement("button", { onClick: closeSearch, style: { border: "none", background: "transparent", color: C.accent, cursor: "pointer", fontWeight: 760, fontSize: 15, fontFamily: "inherit", padding: "0 0 14px", display: "inline-flex", alignItems: "center", gap: 4 } }, "‹ Back");
+    }
     function renderMainNavCard({ keyName, title, subtitle, count, icon, color }) {
         const accent = color || C.accent;
         return React.createElement("button", { onClick: () => goSection(keyName), style: cardSurface({ minHeight: 112, padding: 16, borderRadius: 22, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", justifyContent: "space-between", border: `1px solid ${UI.border}`, background: `linear-gradient(145deg, ${accent}24, rgba(255,255,255,0.045))`, boxShadow: "none" }) },
@@ -2115,18 +2225,13 @@ function App() {
                 React.createElement("div", null,
                     React.createElement("div", { style: { color: C.muted, fontSize: 13, fontWeight: 700, marginBottom: 5 } }, "Main"),
                     React.createElement("div", { style: { color: C.text, fontSize: 34, fontWeight: 820, letterSpacing: -1.1, lineHeight: 1.05 } }, today.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }))),
-                React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "🔍")),
-            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 14 } },
+                React.createElement("button", { onClick: () => { searchOpen ? closeSearch() : openSearch(); }, style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "🔍")),
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 0 } },
                 renderMainNavCard({ keyName: "tasks", title: "Tasks", subtitle: "Lists & Today", count: taskOpenCount, icon: "✓", color: C.accent }),
                 renderMainNavCard({ keyName: "calendar", title: "Calendar", subtitle: calCount ? "Today" : "No events today", count: calCount, icon: "□", color: C.red }),
                 renderMainNavCard({ keyName: "meds", title: "Meds", subtitle: "Doses", count: medCountText, icon: "◉", color: C.green }),
                 renderMainNavCard({ keyName: "notes", title: "Notes", subtitle: "Saved notes", count: notes.length, icon: "≡", color: C.amber }),
-                React.createElement("div", { style: { gridColumn: "1 / -1" } }, renderMainNavCard({ keyName: "sync", title: "Sync", subtitle: pendingAppleCount ? "Pending Apple changes" : "Everything synced", count: pendingAppleCount, icon: "↗", color: pendingAppleCount ? C.amber : C.dim }))),
-            React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: "13px 15px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 2 }) },
-                React.createElement("div", null,
-                    React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 780 } }, "Today's doses"),
-                    React.createElement("div", { style: { color: C.muted, fontSize: 11, marginTop: 3 } }, todayMedDoses.length ? `${medsTakenToday}/${todayMedDoses.length} taken` : "No meds scheduled")),
-                React.createElement("button", { onClick: () => goSection("meds"), style: { padding: "8px 12px", borderRadius: 12, border: `1px solid ${C.border}`, background: UI.controlBg, color: C.text, cursor: "pointer", fontWeight: 760, fontSize: 12, fontFamily: "inherit" } }, "Open")));
+                React.createElement("div", { style: { gridColumn: "1 / -1" } }, renderMainNavCard({ keyName: "sync", title: "Sync", subtitle: pendingAppleCount ? "Pending Apple changes" : "Everything synced", count: pendingAppleCount, icon: "↗", color: pendingAppleCount ? C.amber : C.dim }))));
     }
     const tabContent = (React.createElement(React.Fragment, null,
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
@@ -2160,12 +2265,21 @@ function App() {
                     React.createElement("button", { onClick: bulkExportTasksToApple, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Tasks Only"),
                     React.createElement("button", { onClick: bulkExportEventsToApple, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Events Only"))),
             React.createElement(SectionHeader, { icon: "↗", label: "PENDING CHANGES", color: pendingAppleCount ? C.amber : C.dim }),
-            pendingAppleList.length ? pendingAppleList.map(ch => React.createElement("div", { key: ch.plannerId, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${ch.operation === "delete" ? C.red : C.amber}` } },
-                React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 5 } }, (ch.snapshot && ch.snapshot.title) || ch.plannerId),
-                React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", fontSize: 9, color: C.muted, fontWeight: 800, letterSpacing: 0.2 } },
-                    React.createElement("span", { style: { color: ch.type === "event" ? C.green : C.accent } }, prettyLabel(ch.type || "")),
-                    React.createElement("span", { style: { color: ch.operation === "delete" ? C.red : C.amber } }, prettyLabel(ch.operation || "upsert")),
-                    React.createElement("span", null, prettyLabel(ch.reason || "changed")))))
+            pendingAppleList.length ? pendingAppleList.map(ch => {
+                const isOpen = activePendingChangeId === ch.plannerId;
+                const baseStyle = { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${ch.operation === "delete" ? C.red : C.amber}`, cursor: "pointer" };
+                return isOpen
+                    ? React.createElement("div", { key: ch.plannerId, onClick: () => setActivePendingChangeId(null), style: { ...baseStyle, minHeight: 62, display: "flex", alignItems: "center" } },
+                        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%" } },
+                            React.createElement("button", { onClick: e => { e.stopPropagation(); setActivePendingChangeId(null); }, style: actionButtonSurface(C.red, C.red + "14") }, React.createElement(ActionIcon, { name: "return" })),
+                            React.createElement("button", { onClick: e => { e.stopPropagation(); clearPendingAppleChange(ch.plannerId); }, style: { ...actionButtonSurface(C.red, C.red + "14"), width: 54 } }, React.createElement(ActionIcon, { name: "trash" }))))
+                    : React.createElement("div", { key: ch.plannerId, onClick: () => setActivePendingChangeId(ch.plannerId), style: baseStyle },
+                        React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: C.text, marginBottom: 5 } }, (ch.snapshot && ch.snapshot.title) || ch.plannerId),
+                        React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", fontSize: 9, color: C.muted, fontWeight: 800, letterSpacing: 0.2 } },
+                            React.createElement("span", { style: { color: ch.type === "event" ? C.green : C.accent } }, prettyLabel(ch.type || "")),
+                            React.createElement("span", { style: { color: ch.operation === "delete" ? C.red : C.amber } }, prettyLabel(ch.operation || "upsert")),
+                            React.createElement("span", null, prettyLabel(ch.reason || "changed"))));
+            })
                 : React.createElement("div", { style: cardSurface({ borderRadius: 16, padding: 16, color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 14 }) }, "No pending Apple changes."),
             React.createElement(SectionHeader, { icon: "▣", label: "BACKUP", color: C.green }),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16 }) },
@@ -2426,15 +2540,17 @@ function App() {
             React.createElement("div", { style: { color: focusColor, fontSize: compactFocus ? 11 : 13, fontWeight: 600, lineHeight: 1.45, whiteSpace: compactFocus ? "nowrap" : "normal", overflow: "hidden", textOverflow: "ellipsis" } }, motivation)))));
     // ── DESKTOP / TABLET LAYOUT (≥640px) ───────────────────────────────────────
     if (isWide) {
-        const content = tab === "tasks" && !searchOpen
-            ? React.createElement(React.Fragment, null, renderTopLevelBackButton(), renderTasksTabContent())
-            : React.createElement(React.Fragment, null, renderTopLevelBackButton(), tabContent);
-        return (React.createElement("div", { style: { height: "100dvh", minHeight: "100dvh", width: "100%", background: UI.appBg, fontFamily: UI.font, overflow: "hidden", position: "relative" } },
+        const content = searchOpen
+            ? React.createElement(React.Fragment, null, renderSearchBackButton(), tabContent)
+            : tab === "tasks"
+                ? React.createElement(React.Fragment, null, renderTopLevelBackButton(), renderTasksTabContent())
+                : React.createElement(React.Fragment, null, renderTopLevelBackButton(), tabContent);
+        return (React.createElement("div", { onTouchStart: handleSwipeBackStart, onTouchMove: handleSwipeBackMove, onTouchEnd: handleSwipeBackEnd, onTouchCancel: handleSwipeBackEnd, style: { height: "100dvh", minHeight: "100dvh", width: "100%", background: UI.appBg, fontFamily: UI.font, overflow: "hidden", position: "relative", transform: swipeOffset ? `translateX(${swipeOffset}px)` : "none", transition: swipeOffset ? "none" : "transform 0.18s ease" } },
             React.createElement("div", { style: { height: 58, borderBottom: `1px solid ${UI.border}`, display: "flex", alignItems: "center", padding: "0 34px", gap: 12, background: UI.panelBg, flexShrink: 0 } },
                 React.createElement("div", { style: { fontSize: 13, fontWeight: 780, color: C.text, letterSpacing: 0.1 } }, tab === "today" ? "Main" : tab === "tasks" ? "Tasks" : tab === "calendar" ? "Calendar" : tab === "meds" ? "Meds" : tab === "sync" ? "Sync" : "Notes"),
                 React.createElement("div", { style: { flex: 1 } }),
-                searchOpen && React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, width: 320, padding: "7px 14px", border: `1px solid ${C.accent}44` } }),
-                React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" } }, "🔍")),
+                searchOpen && React.createElement("input", { ref: searchRef, "data-no-swipe-back": "true", placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, width: 320, padding: "7px 14px", border: `1px solid ${C.accent}44` } }),
+                React.createElement("button", { onClick: () => { searchOpen ? closeSearch() : openSearch(); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${searchOpen ? C.accent : C.border}`, background: searchOpen ? C.accent + "22" : C.bg2, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" } }, "🔍")),
             tab === "tasks" && taskProgressTotal > 0 && React.createElement("div", { style: { maxWidth: 760, margin: "16px auto 0", padding: "0 24px" } }, React.createElement("div", { style: cardSurface({ padding: "10px 14px", borderRadius: 16 }) },
                 React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 0.2 } },
                     React.createElement("span", null, taskProgressLabel),
@@ -2449,12 +2565,14 @@ function App() {
                 React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
     }
     // ── PHONE LAYOUT (<640px) ──────────────────────────────────────────────────
-    const phoneContent = tab === "tasks" && !searchOpen
-        ? React.createElement(React.Fragment, null, renderTopLevelBackButton(), renderTasksTabContent())
-        : React.createElement(React.Fragment, null, renderTopLevelBackButton(), tabContent);
-    return (React.createElement("div", { style: { height: "100%", minHeight: "100%", width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden" } },
+    const phoneContent = searchOpen
+        ? React.createElement(React.Fragment, null, renderSearchBackButton(), tabContent)
+        : tab === "tasks"
+            ? React.createElement(React.Fragment, null, renderTopLevelBackButton(), renderTasksTabContent())
+            : React.createElement(React.Fragment, null, renderTopLevelBackButton(), tabContent);
+    return (React.createElement("div", { onTouchStart: handleSwipeBackStart, onTouchMove: handleSwipeBackMove, onTouchEnd: handleSwipeBackEnd, onTouchCancel: handleSwipeBackEnd, style: { height: "100%", minHeight: "100%", width: "100%", background: UI.appBg, display: "flex", flexDirection: "column", position: "relative", fontFamily: UI.font, overflow: "hidden", transform: swipeOffset ? `translateX(${swipeOffset}px)` : "none", transition: swipeOffset ? "none" : "transform 0.18s ease" } },
         tab !== "today" && React.createElement("div", { style: { margin: "8px 14px 0", display: "flex", justifyContent: "flex-end", alignItems: "center" } },
-            React.createElement("button", { onClick: () => { setSearchOpen(!searchOpen); setSearchQuery(""); }, style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "🔍")),
+            React.createElement("button", { onClick: () => { searchOpen ? closeSearch() : openSearch(); }, style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "🔍")),
         tab === "tasks" && taskProgressTotal > 0 && (React.createElement("div", { style: cardSurface({ margin: tab === "today" ? "10px 14px 0" : "10px 14px 0", padding: "10px 14px", borderRadius: 16 }) },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 10, fontWeight: 700, color: C.muted, marginBottom: 6, letterSpacing: 0.4 } },
                 React.createElement("span", null, taskProgressLabel),
@@ -2467,7 +2585,7 @@ function App() {
             React.createElement("div", { style: { height: 4, background: "rgba(255,255,255,0.10)", borderRadius: 4, overflow: "hidden" } },
                 React.createElement("div", { style: { height: "100%", borderRadius: 4, background: taskProgressPct === 100 ? C.green : C.accent, width: `${taskProgressPct}%`, transition: "width 0.5s cubic-bezier(.4,2,.6,1)", boxShadow: "none" } })))),
         searchOpen && (React.createElement("div", { style: { margin: "8px 16px 0" } },
-            React.createElement("input", { ref: searchRef, placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
+            React.createElement("input", { ref: searchRef, "data-no-swipe-back": "true", placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: tab === "today" ? "20px 14px 34px" : "14px 14px 106px" } }, phoneContent),
         tab !== "today" && !searchOpen && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 24, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
