@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+  <title>ADHD Planner</title>
+  <link rel="icon" type="image/png" href="./icon.png" />
+  <link rel="apple-touch-icon" href="./icon.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ADHD Planner" />
+  <meta name="theme-color" content="#080D14" />
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --app-bg: linear-gradient(180deg, #0D1420 0%, #080D14 100%);
+      --app-bg-color: #080D14;
+    }
+    html {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      background: var(--app-bg-color);
+    }
+    body {
+      margin: 0;
+      width: 100%;
+      min-height: 100dvh;
+      background: var(--app-bg);
+      overflow: hidden;
+      overscroll-behavior: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
+    }
+    button, input, textarea, select {
+      font: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { touch-action: manipulation; }
+    input::placeholder, textarea::placeholder { color: rgba(166,173,187,.62); }
+    #root {
+      width: 100%;
+      min-height: 100dvh;
+      height: 100dvh;
+      padding-top: var(--safe-top);
+      padding-right: var(--safe-right);
+      padding-bottom: var(--safe-bottom);
+      padding-left: var(--safe-left);
+      overflow: hidden;
+      background: var(--app-bg);
+    }
+    #root > div {
+      min-height: 100%;
+      background: var(--app-bg);
+    }
+    #boot-error { color: #F5F5F7; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; display:none; }
+  </style>
+  <script>
+    window.addEventListener('error', function(e) {
+      var el = document.getElementById('boot-error');
+      if (el) { el.style.display = 'block'; el.textContent = 'App failed to start: ' + (e.message || 'Unknown error'); }
+      console.error(e.error || e.message);
+    });
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="boot-error"></div>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="./app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.warn));
+    }
+  </script>
+</body>
+</html>
