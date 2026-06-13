@@ -295,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v62";
+const APP_VERSION = "v63";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -429,8 +429,61 @@ function makeImageData(images) {
     const clean = (images || []).filter(Boolean);
     return { imageUrls: clean, imageUrl: clean[0] || "" };
 }
+function inlineImageMarker(id) {
+    return `[[image:${id}]]`;
+}
+function parseNoteContentBlocks(content) {
+    const raw = String(content || "");
+    const re = /\[\[image:([^\]]+)\]\]/g;
+    const blocks = [];
+    let last = 0;
+    let match;
+    while ((match = re.exec(raw))) {
+        if (match.index > last) blocks.push({ type: "text", text: raw.slice(last, match.index), start: last, end: match.index });
+        blocks.push({ type: "image", id: match[1], start: match.index, end: re.lastIndex });
+        last = re.lastIndex;
+    }
+    if (last < raw.length || blocks.length === 0) blocks.push({ type: "text", text: raw.slice(last), start: last, end: raw.length });
+    return blocks;
+}
+function inlineImageIds(content) {
+    return parseNoteContentBlocks(content).filter(b => b.type === "image").map(b => b.id);
+}
+function estimateNoteTextHeight(text, minHeight) {
+    const raw = String(text || "");
+    const lines = raw.split("\n").reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / 34)), 0);
+    return Math.max(minHeight || 180, lines * 27 + 36);
+}
+function noteShareTextFromContent(content) {
+    return String(content || "").replace(/\s*\[\[image:[^\]]+\]\]\s*/g, "\n[Image]\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+function getNoteEmbeddedImages(note) {
+    const embedded = note && note.embeddedImages;
+    return embedded && typeof embedded === "object" && !Array.isArray(embedded) ? embedded : {};
+}
+function getNoteInlineImageUrl(note, id) {
+    return getNoteEmbeddedImages(note)[id] || "";
+}
+function getUnpositionedNoteImages(note) {
+    const usedIds = new Set(inlineImageIds(note && note.content));
+    const embedded = getNoteEmbeddedImages(note);
+    const usedUrls = new Set(Object.keys(embedded).filter(id => usedIds.has(id)).map(id => embedded[id]).filter(Boolean));
+    return getImages(note).filter(url => url && !usedUrls.has(url));
+}
+function InlineImageUploadBtn({ onImages }) {
+    const ref = useRef(null);
+    async function addFiles(files) {
+        const list = Array.from(files || []);
+        if (!list.length) return;
+        const reads = await Promise.all(list.map(f => readImageFile(f)));
+        onImages(reads.filter(Boolean));
+    }
+    return React.createElement("div", { style: { marginTop: 14, marginBottom: 22 } },
+        React.createElement("input", { ref: ref, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: async (e) => { await addFiles(e.target.files); e.target.value = ""; } }),
+        React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "8px 12px", borderRadius: 10, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 11, fontFamily: "inherit", fontWeight: 760, letterSpacing: 0.1 } }, "+ Add Images"));
+}
 function stripHeavyDetails(item) {
-    return { ...item, description: "", imageUrl: "", imageUrls: [] };
+    return { ...item, description: "", imageUrl: "", imageUrls: [], embeddedImages: {} };
 }
 function compactDoneTaskRecord(task) {
     return task;
@@ -1051,8 +1104,9 @@ function App() {
     const [noteReturnTarget, setNoteReturnTarget] = useState({ view: "overview", folderId: null });
     const [showFolderMgr, setShowFolderMgr] = useState(false);
     const [folderDraft, setFolderDraft] = useState({ name: "", color: ACCENT_COLORS[0] });
-    const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [] }); };
+    const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [], embeddedImages: {} }); };
     const [noteDraft, setNoteDraft] = useState(emptyNote);
+    const noteBodyCursorRef = useRef(null);
     useEffect(() => {
         setFolders(p => {
             const list = Array.isArray(p) ? p : [];
@@ -1747,6 +1801,7 @@ function App() {
             folderId: (n && n.folderId) || generalFolderId(),
             imageUrl: imgs[0] || "",
             imageUrls: imgs,
+            embeddedImages: getNoteEmbeddedImages(n || {}),
             updatedAt: (n && n.updatedAt) || (n && n.createdAt) || Date.now()
         };
     }
@@ -1768,7 +1823,7 @@ function App() {
     function openAddNote(folderId) {
         const now = Date.now();
         const targetFolder = folderId || (noteView === "list" && selFolderId ? selFolderId : generalFolderId());
-        const rec = { id: now, createdAt: now, updatedAt: now, title: "", type: "descriptive", content: "", topics: [], folderId: targetFolder, imageUrl: "", imageUrls: [] };
+        const rec = { id: now, createdAt: now, updatedAt: now, title: "", type: "descriptive", content: "", topics: [], folderId: targetFolder, imageUrl: "", imageUrls: [], embeddedImages: {} };
         setNotes(p => [rec, ...p]);
         setNoteDraft(noteToDraft(rec));
         setEditingNoteId(rec.id);
@@ -1808,6 +1863,63 @@ function App() {
         setNoteDraft(d => ({ ...d, ...patch, updatedAt }));
         setNotes(p => p.map(n => n.id === id ? { ...n, ...patch, updatedAt } : n));
     }
+    function rememberNoteBodyCursor(blockStart, e) {
+        const id = selectedNoteId || editingNoteId;
+        const el = e && e.target;
+        if (!id || !el || typeof el.selectionStart !== "number") return;
+        noteBodyCursorRef.current = { noteId: id, pos: blockStart + el.selectionStart };
+    }
+    function replaceNoteContentRange(start, end, value) {
+        const current = String(noteDraft.content || "");
+        const next = current.slice(0, start) + value + current.slice(end);
+        const id = selectedNoteId || editingNoteId;
+        noteBodyCursorRef.current = { noteId: id, pos: start + String(value || "").length };
+        updateOpenNote({ content: next });
+    }
+    function insertInlineNoteImages(urls) {
+        const clean = (urls || []).filter(Boolean);
+        if (!clean.length) return;
+        const id = selectedNoteId || editingNoteId;
+        if (!id) return;
+        if ((noteDraft.type || "descriptive") === "topic") {
+            const nextImages = [...getImages(noteDraft), ...clean];
+            updateOpenNote(makeImageData(nextImages));
+            return;
+        }
+        const current = String(noteDraft.content || "");
+        const savedCursor = noteBodyCursorRef.current;
+        const pos = savedCursor && savedCursor.noteId === id && Number.isFinite(savedCursor.pos) ? Math.max(0, Math.min(current.length, savedCursor.pos)) : current.length;
+        const embedded = { ...getNoteEmbeddedImages(noteDraft) };
+        const markers = clean.map((url, i) => {
+            const imgId = `note-img-${Date.now()}-${i}`;
+            embedded[imgId] = url;
+            return inlineImageMarker(imgId);
+        });
+        const before = current.slice(0, pos);
+        const after = current.slice(pos);
+        const prefix = before && !before.endsWith("\n") ? "\n\n" : (before.endsWith("\n\n") || !before ? "" : "\n");
+        const suffix = after && !after.startsWith("\n") ? "\n\n" : (after.startsWith("\n\n") || !after ? "" : "\n");
+        const insert = `${prefix}${markers.join("\n\n")}${suffix}`;
+        const nextContent = before + insert + after;
+        const nextImages = [...getImages(noteDraft), ...clean];
+        noteBodyCursorRef.current = { noteId: id, pos: before.length + insert.length };
+        updateOpenNote({ content: nextContent, embeddedImages: embedded, ...makeImageData(nextImages) });
+    }
+    function removeInlineNoteImage(imageId) {
+        if (!imageId) return;
+        const marker = inlineImageMarker(imageId);
+        const embedded = { ...getNoteEmbeddedImages(noteDraft) };
+        const removedUrl = embedded[imageId];
+        delete embedded[imageId];
+        const content = String(noteDraft.content || "").replace(marker, "").replace(/\n{3,}/g, "\n\n");
+        const stillUsed = removedUrl && Object.values(embedded).includes(removedUrl);
+        const nextImages = stillUsed || !removedUrl ? getImages(noteDraft) : getImages(noteDraft).filter(url => url !== removedUrl);
+        updateOpenNote({ content, embeddedImages: embedded, ...makeImageData(nextImages) });
+    }
+    function removeUnpositionedNoteImage(url) {
+        const nextImages = getImages(noteDraft).filter(img => img !== url);
+        updateOpenNote(makeImageData(nextImages));
+    }
     function updateOpenNoteTopic(index, value) {
         const topics = [...(noteDraft.topics || [""])];
         topics[index] = value;
@@ -1829,7 +1941,7 @@ function App() {
             const bullets = (n.topics || []).filter(t => String(t || "").trim()).map(t => "• " + String(t).trim()).join("\n");
             return bullets ? `${title}\n\n${bullets}` : title;
         }
-        const body = String(n.content || "").trim();
+        const body = noteShareTextFromContent(n.content);
         return body ? `${title}\n\n${body}` : title;
     }
     async function shareNote(n) {
@@ -2388,7 +2500,7 @@ function App() {
         const isOpen = activeNoteActionsId === n.id;
         const preview = (n.type || "descriptive") === "topic"
             ? (n.topics || []).filter(Boolean).slice(0, 2).map(t => "• " + t).join("\n")
-            : String(n.content || "");
+            : noteShareTextFromContent(n.content);
         if (isOpen) {
             const stop = e => { e.stopPropagation(); e.preventDefault(); };
             return React.createElement("div", { key: n.id, style: cardSurface({ borderRadius: 16, padding: 12, marginBottom: 8, borderLeft: `3px solid ${folder.color || C.amber}` }) },
@@ -2417,15 +2529,24 @@ function App() {
             React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, alignItems: "center" } },
                 folders.map(f => React.createElement("button", { key: f.id, onClick: () => updateOpenNote({ folderId: f.id }), style: { padding: "5px 9px", borderRadius: 999, border: (noteDraft.folderId || n.folderId) === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: (noteDraft.folderId || n.folderId) === f.id ? f.color + "22" : C.bg2, color: (noteDraft.folderId || n.folderId) === f.id ? f.color : C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, f.name)),
                 React.createElement("button", { onClick: () => updateOpenNote({ type: (noteDraft.type || n.type) === "topic" ? "descriptive" : "topic" }), style: { padding: "5px 9px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, (noteDraft.type || n.type) === "topic" ? "Topic" : "Text")),
-            getImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginBottom: 12 } }, getImages(noteDraft).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }))),
             (noteDraft.type || n.type) === "topic" ? React.createElement("div", { style: { marginBottom: 12 } },
                 topics.map((topic, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 } },
                     React.createElement("span", { style: { color: folder.color || C.amber, fontSize: 18, fontWeight: 900 } }, "•"),
                     React.createElement("input", { placeholder: `Topic ${i + 1}`, value: topic, onChange: e => updateOpenNoteTopic(i, e.target.value), onKeyDown: e => { if (e.key === "Enter") { e.preventDefault(); addOpenNoteTopic(i); } if (e.key === "Backspace" && !topic && topics.length > 1) { e.preventDefault(); removeOpenNoteTopic(i); } }, style: { ...inp, flex: 1, border: "none", background: C.bg2, fontSize: 14 } }),
                     topics.length > 1 && React.createElement("button", { onClick: () => removeOpenNoteTopic(i), style: { border: "none", background: "transparent", color: C.red, cursor: "pointer", fontSize: 18, fontWeight: 900 } }, "×"))),
-                React.createElement("button", { onClick: () => addOpenNoteTopic(topics.length - 1), style: { padding: "7px 10px", borderRadius: 10, border: `1px dashed ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 700 } }, "+ Add Topic"))
-                : React.createElement("textarea", { placeholder: "Start writing...", value: noteDraft.content || "", onChange: e => updateOpenNote({ content: e.target.value }), rows: 12, style: { width: "100%", boxSizing: "border-box", minHeight: 260, border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "vertical", marginBottom: 12 } }),
-            React.createElement(MultiImageUploadBtn, { value: noteDraft.imageUrls || getImages(noteDraft), onChange: urls => updateOpenNote(makeImageData(urls)) }));
+                React.createElement("button", { onClick: () => addOpenNoteTopic(topics.length - 1), style: { padding: "7px 10px", borderRadius: 10, border: `1px dashed ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 11, fontWeight: 700 } }, "+ Add Topic"),
+                getUnpositionedNoteImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "12px 0" } }, getUnpositionedNoteImages(noteDraft).map((url, i) => React.createElement("div", { key: i, style: { position: "relative" } },
+                    React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }),
+                    React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×")))) )
+                : React.createElement("div", { style: { marginBottom: 8 } },
+                    parseNoteContentBlocks(noteDraft.content).map((block, i) => block.type === "image" ? (React.createElement("div", { key: `img-${block.id}-${i}`, style: { position: "relative", margin: "12px 0" } },
+                        getNoteInlineImageUrl(noteDraft, block.id) ? React.createElement("img", { src: getNoteInlineImageUrl(noteDraft, block.id), alt: "", onClick: () => openPlannerImage(getNoteInlineImageUrl(noteDraft, block.id)), style: { width: "100%", maxHeight: 520, borderRadius: 14, objectFit: "cover", display: "block", cursor: "zoom-in", border: `1px solid ${C.border}` } }) : React.createElement("div", { style: { color: C.dim, fontSize: 12, padding: "10px 0" } }, "[Missing image]"),
+                        React.createElement("button", { onClick: () => removeInlineNoteImage(block.id), style: { position: "absolute", top: 8, right: 8, background: "#000000AA", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 16 } }, "×"))) :
+                        React.createElement("textarea", { key: `text-${i}`, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e), onClick: e => rememberNoteBodyCursor(block.start, e), onKeyUp: e => rememberNoteBodyCursor(block.start, e), onSelect: e => rememberNoteBodyCursor(block.start, e), onFocus: e => rememberNoteBodyCursor(block.start, e), rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(block.text, parseNoteContentBlocks(noteDraft.content).length === 1 ? 420 : 120), height: estimateNoteTextHeight(block.text, parseNoteContentBlocks(noteDraft.content).length === 1 ? 420 : 120), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 4 } })),
+                    getUnpositionedNoteImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "12px 0" } }, getUnpositionedNoteImages(noteDraft).map((url, i) => React.createElement("div", { key: i, style: { position: "relative" } },
+                        React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }),
+                        React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×"))))),
+            React.createElement(InlineImageUploadBtn, { onImages: insertInlineNoteImages }));
     }
     function renderNotesTabContent() {
         const sorted = [...notes].sort((a, b) => noteSortTime(b) - noteSortTime(a));
