@@ -295,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v63";
+const APP_VERSION = "v64";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -432,6 +432,26 @@ function makeImageData(images) {
 function inlineImageMarker(id) {
     return `[[image:${id}]]`;
 }
+function normalizeInlineImageSpacing(content) {
+    let raw = String(content || "");
+    raw = raw.replace(/\r\n/g, "\n");
+    raw = raw.replace(/\s*\[\[image:([^\]]+)\]\]\s*/g, (m, id) => `\n[[image:${id}]]\n`);
+    raw = raw.replace(/\n{3,}/g, "\n\n");
+    return raw;
+}
+function noteTextHeightSource(text) {
+    const raw = String(text || "");
+    return raw.replace(/^\n+/, "").replace(/\n+$/, "");
+}
+function shouldRenderNoteTextBlock(block, blocks, index) {
+    if (!block || block.type !== "text") return true;
+    const all = blocks || [];
+    if (all.length <= 1) return true;
+    if (String(block.text || "").trim().length > 0) return true;
+    const prev = all[index - 1];
+    const isTrailingEditSpace = index === all.length - 1 && prev && prev.type === "image";
+    return !!isTrailingEditSpace;
+}
 function parseNoteContentBlocks(content) {
     const raw = String(content || "");
     const re = /\[\[image:([^\]]+)\]\]/g;
@@ -470,7 +490,7 @@ function getUnpositionedNoteImages(note) {
     const usedUrls = new Set(Object.keys(embedded).filter(id => usedIds.has(id)).map(id => embedded[id]).filter(Boolean));
     return getImages(note).filter(url => url && !usedUrls.has(url));
 }
-function InlineImageUploadBtn({ onImages }) {
+function InlineImageUploadBtn({ onImages, compact = false }) {
     const ref = useRef(null);
     async function addFiles(files) {
         const list = Array.from(files || []);
@@ -478,9 +498,55 @@ function InlineImageUploadBtn({ onImages }) {
         const reads = await Promise.all(list.map(f => readImageFile(f)));
         onImages(reads.filter(Boolean));
     }
-    return React.createElement("div", { style: { marginTop: 14, marginBottom: 22 } },
+    const btn = React.createElement("button", {
+        onMouseDown: e => e.preventDefault(),
+        onTouchStart: e => e.stopPropagation(),
+        onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); },
+        style: {
+            padding: compact ? "7px 11px" : "8px 12px",
+            borderRadius: compact ? 999 : 10,
+            border: `1px solid ${compact ? C.border : C.dim}`,
+            background: compact ? C.bg2 : "transparent",
+            cursor: "pointer",
+            color: compact ? C.text : C.muted,
+            fontSize: compact ? 12 : 11,
+            fontFamily: "inherit",
+            fontWeight: 760,
+            letterSpacing: 0.1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6
+        }
+    }, compact ? "🖼 Add Image" : "+ Add Images");
+    return React.createElement("div", { style: compact ? { margin: 0 } : { marginTop: 14, marginBottom: 22 } },
         React.createElement("input", { ref: ref, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: async (e) => { await addFiles(e.target.files); e.target.value = ""; } }),
-        React.createElement("button", { onClick: () => { var _a; return (_a = ref.current) === null || _a === void 0 ? void 0 : _a.click(); }, style: { padding: "8px 12px", borderRadius: 10, border: `1px dashed ${C.dim}`, background: "transparent", cursor: "pointer", color: C.muted, fontSize: 11, fontFamily: "inherit", fontWeight: 760, letterSpacing: 0.1 } }, "+ Add Images"));
+        btn);
+}
+function renderNoteToolbar(onImages) {
+    return React.createElement("div", {
+        style: {
+            position: "sticky",
+            top: 0,
+            zIndex: 5,
+            margin: "-2px 0 12px",
+            padding: "7px 0",
+            background: `linear-gradient(180deg, ${C.bg0}F7, ${C.bg0}E8)`,
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)"
+        }
+    },
+        React.createElement("div", {
+            style: {
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: 5,
+                borderRadius: 999,
+                border: `1px solid ${C.border}`,
+                background: C.bg3,
+                boxShadow: "0 8px 22px rgba(0,0,0,.14)"
+            }
+        }, React.createElement(InlineImageUploadBtn, { onImages, compact: true })));
 }
 function stripHeavyDetails(item) {
     return { ...item, description: "", imageUrl: "", imageUrls: [], embeddedImages: {} };
@@ -1897,12 +1963,14 @@ function App() {
         });
         const before = current.slice(0, pos);
         const after = current.slice(pos);
-        const prefix = before && !before.endsWith("\n") ? "\n\n" : (before.endsWith("\n\n") || !before ? "" : "\n");
-        const suffix = after && !after.startsWith("\n") ? "\n\n" : (after.startsWith("\n\n") || !after ? "" : "\n");
-        const insert = `${prefix}${markers.join("\n\n")}${suffix}`;
-        const nextContent = before + insert + after;
+        const markerText = markers.join("\n");
+        const needsBeforeBreak = before && !before.endsWith("\n");
+        const needsAfterBreak = after && !after.startsWith("\n");
+        const insert = `${needsBeforeBreak ? "\n" : ""}${markerText}${needsAfterBreak ? "\n" : ""}`;
+        const nextContent = normalizeInlineImageSpacing(before + insert + after);
         const nextImages = [...getImages(noteDraft), ...clean];
-        noteBodyCursorRef.current = { noteId: id, pos: before.length + insert.length };
+        const markerIndex = nextContent.lastIndexOf(markers[markers.length - 1]);
+        noteBodyCursorRef.current = { noteId: id, pos: markerIndex >= 0 ? markerIndex + markers[markers.length - 1].length + 1 : nextContent.length };
         updateOpenNote({ content: nextContent, embeddedImages: embedded, ...makeImageData(nextImages) });
     }
     function removeInlineNoteImage(imageId) {
@@ -1911,7 +1979,7 @@ function App() {
         const embedded = { ...getNoteEmbeddedImages(noteDraft) };
         const removedUrl = embedded[imageId];
         delete embedded[imageId];
-        const content = String(noteDraft.content || "").replace(marker, "").replace(/\n{3,}/g, "\n\n");
+        const content = normalizeInlineImageSpacing(String(noteDraft.content || "").replace(marker, "")).replace(/^\n+|\n+$/g, "");
         const stillUsed = removedUrl && Object.values(embedded).includes(removedUrl);
         const nextImages = stillUsed || !removedUrl ? getImages(noteDraft) : getImages(noteDraft).filter(url => url !== removedUrl);
         updateOpenNote({ content, embeddedImages: embedded, ...makeImageData(nextImages) });
@@ -2529,6 +2597,7 @@ function App() {
             React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, alignItems: "center" } },
                 folders.map(f => React.createElement("button", { key: f.id, onClick: () => updateOpenNote({ folderId: f.id }), style: { padding: "5px 9px", borderRadius: 999, border: (noteDraft.folderId || n.folderId) === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: (noteDraft.folderId || n.folderId) === f.id ? f.color + "22" : C.bg2, color: (noteDraft.folderId || n.folderId) === f.id ? f.color : C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, f.name)),
                 React.createElement("button", { onClick: () => updateOpenNote({ type: (noteDraft.type || n.type) === "topic" ? "descriptive" : "topic" }), style: { padding: "5px 9px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, (noteDraft.type || n.type) === "topic" ? "Topic" : "Text")),
+            renderNoteToolbar(insertInlineNoteImages),
             (noteDraft.type || n.type) === "topic" ? React.createElement("div", { style: { marginBottom: 12 } },
                 topics.map((topic, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 } },
                     React.createElement("span", { style: { color: folder.color || C.amber, fontSize: 18, fontWeight: 900 } }, "•"),
@@ -2538,15 +2607,14 @@ function App() {
                 getUnpositionedNoteImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "12px 0" } }, getUnpositionedNoteImages(noteDraft).map((url, i) => React.createElement("div", { key: i, style: { position: "relative" } },
                     React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }),
                     React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×")))) )
-                : React.createElement("div", { style: { marginBottom: 8 } },
-                    parseNoteContentBlocks(noteDraft.content).map((block, i) => block.type === "image" ? (React.createElement("div", { key: `img-${block.id}-${i}`, style: { position: "relative", margin: "12px 0" } },
-                        getNoteInlineImageUrl(noteDraft, block.id) ? React.createElement("img", { src: getNoteInlineImageUrl(noteDraft, block.id), alt: "", onClick: () => openPlannerImage(getNoteInlineImageUrl(noteDraft, block.id)), style: { width: "100%", maxHeight: 520, borderRadius: 14, objectFit: "cover", display: "block", cursor: "zoom-in", border: `1px solid ${C.border}` } }) : React.createElement("div", { style: { color: C.dim, fontSize: 12, padding: "10px 0" } }, "[Missing image]"),
+                : React.createElement("div", { style: { marginBottom: 8, paddingBottom: 24 } },
+                    parseNoteContentBlocks(noteDraft.content).filter((block, idx, all) => shouldRenderNoteTextBlock(block, all, idx)).map((block, i, arr) => block.type === "image" ? (React.createElement("div", { key: `img-${block.id}-${i}`, style: { position: "relative", margin: "10px 0 12px" } },
+                        getNoteInlineImageUrl(noteDraft, block.id) ? React.createElement("img", { src: getNoteInlineImageUrl(noteDraft, block.id), alt: "", onClick: () => openPlannerImage(getNoteInlineImageUrl(noteDraft, block.id)), style: { width: "100%", maxHeight: 520, borderRadius: 14, objectFit: "cover", display: "block", cursor: "zoom-in", border: `1px solid ${C.border}` } }) : React.createElement("div", { style: { color: C.dim, fontSize: 12, padding: "8px 0" } }, "[Missing image]"),
                         React.createElement("button", { onClick: () => removeInlineNoteImage(block.id), style: { position: "absolute", top: 8, right: 8, background: "#000000AA", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 16 } }, "×"))) :
-                        React.createElement("textarea", { key: `text-${i}`, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e), onClick: e => rememberNoteBodyCursor(block.start, e), onKeyUp: e => rememberNoteBodyCursor(block.start, e), onSelect: e => rememberNoteBodyCursor(block.start, e), onFocus: e => rememberNoteBodyCursor(block.start, e), rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(block.text, parseNoteContentBlocks(noteDraft.content).length === 1 ? 420 : 120), height: estimateNoteTextHeight(block.text, parseNoteContentBlocks(noteDraft.content).length === 1 ? 420 : 120), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 4 } })),
+                        React.createElement("textarea", { key: `text-${i}`, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e), onClick: e => rememberNoteBodyCursor(block.start, e), onKeyUp: e => rememberNoteBodyCursor(block.start, e), onSelect: e => rememberNoteBodyCursor(block.start, e), onFocus: e => rememberNoteBodyCursor(block.start, e), rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), height: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 0, display: "block" } })),
                     getUnpositionedNoteImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "12px 0" } }, getUnpositionedNoteImages(noteDraft).map((url, i) => React.createElement("div", { key: i, style: { position: "relative" } },
                         React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }),
-                        React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×"))))),
-            React.createElement(InlineImageUploadBtn, { onImages: insertInlineNoteImages }));
+                        React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×"))))));
     }
     function renderNotesTabContent() {
         const sorted = [...notes].sort((a, b) => noteSortTime(b) - noteSortTime(a));
