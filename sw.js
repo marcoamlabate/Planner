@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v64-notes-toolbar-spacing';
+const CACHE_NAME = 'adhd-planner-v65-task-done-export';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

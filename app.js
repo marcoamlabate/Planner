@@ -295,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v64";
+const APP_VERSION = "v65";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -1683,6 +1683,7 @@ function App() {
             title: t.text || "Untitled task",
             notes,
             taskTag,
+            taskDone: t.done ? "yes" : "no",
             appleNotes: appleNotesWithPlannerId(notes, plannerIdValue),
             categoryId: normalizeTaskCategoryId(t.categoryId) || "",
             categoryText: cat && cat.name ? String(cat.name).charAt(0).toUpperCase() + String(cat.name).slice(1) : "",
