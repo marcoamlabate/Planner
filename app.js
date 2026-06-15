@@ -295,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v65";
+const APP_VERSION = "v66";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -660,6 +660,64 @@ function openPlannerImage(url) {
     if (url)
         window.dispatchEvent(new CustomEvent("planner-lightbox", { detail: url }));
 }
+function stopLinkedTextEvent(e) {
+    if (!e) return;
+    e.stopPropagation();
+}
+function trimLinkTrailingPunctuation(candidate) {
+    let text = String(candidate || "");
+    let suffix = "";
+    while (text && /[.,;:!?\)\]\}]/.test(text[text.length - 1])) {
+        const ch = text[text.length - 1];
+        if (ch === ")" && (text.match(/\(/g) || []).length > (text.match(/\)/g) || []).length) break;
+        if (ch === "]" && (text.match(/\[/g) || []).length > (text.match(/\]/g) || []).length) break;
+        if (ch === "}" && (text.match(/\{/g) || []).length > (text.match(/\}/g) || []).length) break;
+        suffix = ch + suffix;
+        text = text.slice(0, -1);
+    }
+    return { text, suffix };
+}
+function safeLinkHref(displayText) {
+    const raw = String(displayText || "").trim();
+    if (!raw) return "";
+    const href = /^www\./i.test(raw) ? `https://${raw}` : raw;
+    try {
+        const url = new URL(href);
+        const protocol = url.protocol.toLowerCase();
+        if (protocol === "http:" || protocol === "https:" || protocol === "mailto:") return href;
+    }
+    catch { }
+    return "";
+}
+function splitLinkedText(text) {
+    const raw = String(text || "");
+    const re = /(?:https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|mailto:[^\s<>"']+)/gi;
+    const parts = [];
+    let last = 0;
+    let match;
+    while ((match = re.exec(raw))) {
+        const candidate = match[0];
+        const absoluteStart = match.index;
+        if (candidate.startsWith("[[image:")) continue;
+        if (absoluteStart > last) parts.push({ type: "text", text: raw.slice(last, absoluteStart) });
+        const trimmed = trimLinkTrailingPunctuation(candidate);
+        const href = safeLinkHref(trimmed.text);
+        if (href) parts.push({ type: "link", text: trimmed.text, href });
+        else parts.push({ type: "text", text: trimmed.text });
+        if (trimmed.suffix) parts.push({ type: "text", text: trimmed.suffix });
+        last = absoluteStart + candidate.length;
+    }
+    if (last < raw.length) parts.push({ type: "text", text: raw.slice(last) });
+    return parts.length ? parts : [{ type: "text", text: raw }];
+}
+function renderLinkedText(text, style = {}, emptyText = "") {
+    const raw = String(text || "");
+    const display = raw || emptyText;
+    const linkStyle = { color: C.accent, textDecoration: "none", fontWeight: 650, overflowWrap: "anywhere", WebkitTapHighlightColor: "transparent" };
+    return React.createElement("span", { style: { whiteSpace: "pre-wrap", overflowWrap: "anywhere", ...style } }, splitLinkedText(display).map((part, i) => part.type === "link"
+        ? React.createElement("a", { key: i, href: part.href, target: "_blank", rel: "noopener noreferrer", onClick: stopLinkedTextEvent, onPointerDown: stopLinkedTextEvent, onPointerUp: stopLinkedTextEvent, onTouchStart: stopLinkedTextEvent, style: linkStyle }, part.text)
+        : part.text));
+}
 
 function EventViewPanel({ a, onBack, onEdit, onExport }) {
     if (!a)
@@ -676,7 +734,7 @@ function EventViewPanel({ a, onBack, onEdit, onExport }) {
             React.createElement("button", { onClick: () => onEdit(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Edit")),
         onExport && React.createElement("button", { onClick: () => onExport(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, marginTop: 8 } }, "Send to Apple Calendar"),
                     getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
-        React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
+        React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, marginTop: 12 } }, a.description ? renderLinkedText(a.description) : "No description."));
 }
 
 function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtask, onAddSubtask, onExport, onCopyToToday }) {
@@ -751,7 +809,7 @@ function TaskCard({ task, categories, onToggle, onDelete, onEdit, onToggleSubtas
     const expandButton = hasExtra ? React.createElement("button", { onClick: e => { e.stopPropagation(); e.preventDefault(); setExpanded(v => !v); }, onPointerDown: stop, onPointerUp: stop, title: expanded ? "Collapse" : "Expand", style: { width: 36, height: 36, borderRadius: 12, border: `1px solid ${C.border}`, background: UI.controlBg, color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", fontWeight: 900 } }, expanded ? "▲" : "▼") : React.createElement("div", { style: { width: 36, height: 36, flexShrink: 0 } });
     const detailChildren = [];
     if (task.description)
-        detailChildren.push(React.createElement("div", { key: "desc", style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 8 } }, task.description));
+        detailChildren.push(React.createElement("div", { key: "desc", onClick: stop, onPointerDown: stop, onPointerUp: stop, style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: 8 } }, renderLinkedText(task.description)));
     if (taskImages.length > 0)
         detailChildren.push(React.createElement("div", { key: "imgs", style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 10 } }, taskImages.map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(url); }, style: { width: "100%", aspectRatio: "1", borderRadius: 8, objectFit: "cover", display: "block", cursor: "zoom-in" } }))));
     if (subs.length > 0)
@@ -815,7 +873,7 @@ function TodayTaskCard({ task, onToggle, onDelete, onMoveUp, onMoveDown, canMove
             React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                 React.createElement("div", { style: { fontSize: 14, fontWeight: 650, color: task.done ? C.muted : C.text, textDecoration: task.done ? "line-through" : "none", lineHeight: 1.35 } }, task.title || "Untitled"),
                 hasDesc && React.createElement("button", { onClick: e => { e.stopPropagation(); setExpanded(!expanded); }, onPointerDown: stop, onPointerUp: stop, style: { marginTop: 3, padding: 0, border: "none", background: "transparent", color: C.dim, fontSize: 10, fontWeight: 760, fontFamily: "inherit", cursor: "pointer" } }, expanded ? "Hide note" : "Show note"))),
-        expanded && hasDesc && React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${UI.border}`, fontSize: 12, color: C.muted, lineHeight: 1.6, whiteSpace: "pre-wrap" } }, task.description));
+        expanded && hasDesc && React.createElement("div", { onClick: stop, onPointerDown: stop, onPointerUp: stop, style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${UI.border}`, fontSize: 12, color: C.muted, lineHeight: 1.6 } }, renderLinkedText(task.description)));
 }
 
 function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
@@ -868,7 +926,7 @@ function ApptCard({ appt, onDelete, onEdit, onExport, onView }) {
                     appt.recurrence !== "none" && React.createElement("span", { style: { fontSize: 9, color: appt.color, fontWeight: 700, letterSpacing: 0.2 } }, recurLabel[appt.recurrence]))),
             expandButton),
         expanded && hasExtra && (React.createElement("div", { style: { marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` } },
-            appt.description && React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: apptImages.length ? 8 : 0 } }, appt.description),
+            appt.description && React.createElement("div", { onClick: stop, onPointerDown: stop, onPointerUp: stop, style: { fontSize: 12, color: C.muted, lineHeight: 1.6, marginBottom: apptImages.length ? 8 : 0 } }, renderLinkedText(appt.description)),
             apptImages.length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginTop: appt.description ? 8 : 0 } }, apptImages.map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(url); }, style: { width: "100%", aspectRatio: "1", borderRadius: 8, objectFit: "cover", display: "block", cursor: "zoom-in" } })))))));
 }
 
@@ -908,7 +966,7 @@ function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, on
                             React.createElement("button", { onClick: e => { e.stopPropagation(); onDelete(a.id); }, style: { position: "absolute", right: 7, top: 6, background: "transparent", border: "none", color: a.color, fontWeight: 900, fontSize: 13, cursor: "pointer" } }, "\u00d7"),
                             React.createElement("div", { style: { fontSize: 13, fontWeight: 800, color: a.color, lineHeight: 1.25, paddingRight: 18 } }, a.title),
                             React.createElement("div", { style: { fontSize: 10, color: a.color, marginTop: 3, fontWeight: 700, letterSpacing: 0.5 } }, a.time, a.endTime ? ` \u2013 ${a.endTime}` : ""),
-                            a.description && height > 64 && React.createElement("div", { style: { fontSize: 10, color: C.muted, marginTop: 5, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, a.description)),
+                            a.description && height > 64 && React.createElement("div", { onClick: e => e.stopPropagation(), onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: { fontSize: 10, color: C.muted, marginTop: 5, lineHeight: 1.35, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, renderLinkedText(a.description))),
                         selectedApptId === a.id && React.createElement("div", { style: { position: "absolute", top: top + height + 8, left: 0, right: 0, zIndex: 30 } },
                             React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit, onExport: onExport })));
                 }))));
@@ -1173,6 +1231,7 @@ function App() {
     const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [], embeddedImages: {} }); };
     const [noteDraft, setNoteDraft] = useState(emptyNote);
     const noteBodyCursorRef = useRef(null);
+    const [activeNoteTextBlockIndex, setActiveNoteTextBlockIndex] = useState(null);
     useEffect(() => {
         setFolders(p => {
             const list = Array.isArray(p) ? p : [];
@@ -1874,14 +1933,17 @@ function App() {
     }
     function openNotesOverview() {
         setNoteView("overview");
+        setActiveNoteTextBlockIndex(null);
         setSelFolderId(null);
         setSelectedNoteId(null);
         setEditingNoteId(null);
         setActiveNoteActionsId(null);
+        setActiveNoteTextBlockIndex(null);
     }
     function openNotesList(folderId) {
         setSelFolderId(folderId || null);
         setNoteView("list");
+        setActiveNoteTextBlockIndex(null);
         setSelectedNoteId(null);
         setEditingNoteId(null);
         setActiveNoteActionsId(null);
@@ -1893,6 +1955,7 @@ function App() {
         const rec = { id: now, createdAt: now, updatedAt: now, title: "", type: "descriptive", content: "", topics: [], folderId: targetFolder, imageUrl: "", imageUrls: [], embeddedImages: {} };
         setNotes(p => [rec, ...p]);
         setNoteDraft(noteToDraft(rec));
+        setActiveNoteTextBlockIndex(0);
         setEditingNoteId(rec.id);
         setSelectedNoteId(rec.id);
         setNoteReturnTarget({ view: "list", folderId: noteView === "list" ? selFolderId : targetFolder });
@@ -1904,6 +1967,7 @@ function App() {
     function openViewNote(n, returnTarget) {
         if (!n) return;
         setNoteDraft(noteToDraft(n));
+        setActiveNoteTextBlockIndex(null);
         setEditingNoteId(n.id);
         setSelectedNoteId(n.id);
         setNoteReturnTarget(returnTarget || { view: noteView === "list" ? "list" : "overview", folderId: selFolderId });
@@ -1915,6 +1979,7 @@ function App() {
         setSelectedNoteId(null);
         setEditingNoteId(null);
         setActiveNoteActionsId(null);
+        setActiveNoteTextBlockIndex(null);
         if (target.view === "list") {
             setSelFolderId(target.folderId || null);
             setNoteView("list");
@@ -2583,7 +2648,7 @@ function App() {
                 React.createElement("div", { style: { flex: 1, minWidth: 0 } },
                     React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 760, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, normalizeNoteTitle(n.title)),
                     React.createElement("div", { style: { color: (_a = folder.color) !== null && _a !== void 0 ? _a : C.muted, fontSize: 10, fontWeight: 700, marginBottom: preview ? 5 : 0 } }, (n.type === "topic" ? "Topic" : "Text"), inAll ? ` · ${(_b = folder.name) !== null && _b !== void 0 ? _b : "General"}` : ""),
-                    preview && React.createElement("div", { style: { color: C.muted, fontSize: 12, lineHeight: 1.45, whiteSpace: "pre-wrap", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, preview)),
+                    preview && React.createElement("div", { onClick: e => e.stopPropagation(), onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: { color: C.muted, fontSize: 12, lineHeight: 1.45, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, renderLinkedText(preview))),
                 getImages(n)[0] && React.createElement("img", { src: getImages(n)[0], alt: "", onClick: e => { e.stopPropagation(); openPlannerImage(getImages(n)[0]); }, style: { width: 44, height: 44, borderRadius: 10, objectFit: "cover", flexShrink: 0 } }),
                 React.createElement("button", { onClick: e => { e.stopPropagation(); setActiveNoteActionsId(activeNoteActionsId === n.id ? null : n.id); }, style: { width: 42, height: 42, borderRadius: 14, border: `1px solid ${C.border}`, background: C.bg3, color: C.muted, cursor: "pointer", fontSize: 22, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, "⋯")));
     }
@@ -2612,7 +2677,7 @@ function App() {
                     parseNoteContentBlocks(noteDraft.content).filter((block, idx, all) => shouldRenderNoteTextBlock(block, all, idx)).map((block, i, arr) => block.type === "image" ? (React.createElement("div", { key: `img-${block.id}-${i}`, style: { position: "relative", margin: "10px 0 12px" } },
                         getNoteInlineImageUrl(noteDraft, block.id) ? React.createElement("img", { src: getNoteInlineImageUrl(noteDraft, block.id), alt: "", onClick: () => openPlannerImage(getNoteInlineImageUrl(noteDraft, block.id)), style: { width: "100%", maxHeight: 520, borderRadius: 14, objectFit: "cover", display: "block", cursor: "zoom-in", border: `1px solid ${C.border}` } }) : React.createElement("div", { style: { color: C.dim, fontSize: 12, padding: "8px 0" } }, "[Missing image]"),
                         React.createElement("button", { onClick: () => removeInlineNoteImage(block.id), style: { position: "absolute", top: 8, right: 8, background: "#000000AA", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 16 } }, "×"))) :
-                        React.createElement("textarea", { key: `text-${i}`, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e), onClick: e => rememberNoteBodyCursor(block.start, e), onKeyUp: e => rememberNoteBodyCursor(block.start, e), onSelect: e => rememberNoteBodyCursor(block.start, e), onFocus: e => rememberNoteBodyCursor(block.start, e), rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), height: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 0, display: "block" } })),
+                        ((activeNoteTextBlockIndex === i) || (!String(noteDraft.content || "").trim() && arr.length === 1)) ? React.createElement("textarea", { key: `edit-text-${i}`, autoFocus: activeNoteTextBlockIndex === i, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e), onClick: e => rememberNoteBodyCursor(block.start, e), onKeyUp: e => rememberNoteBodyCursor(block.start, e), onSelect: e => rememberNoteBodyCursor(block.start, e), onFocus: e => { setActiveNoteTextBlockIndex(i); rememberNoteBodyCursor(block.start, e); }, onBlur: () => setActiveNoteTextBlockIndex(null), rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), height: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 0, display: "block" } }) : React.createElement("div", { key: `read-text-${i}`, onClick: () => { noteBodyCursorRef.current = { noteId: selectedNoteId || editingNoteId, pos: block.end }; setActiveNoteTextBlockIndex(i); }, style: { width: "100%", boxSizing: "border-box", minHeight: String(block.text || "").trim() ? 28 : 26, padding: "2px 0", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, cursor: "text" } }, renderLinkedText(block.text, {}, i === 0 ? "Start writing..." : ""))),
                     getUnpositionedNoteImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "12px 0" } }, getUnpositionedNoteImages(noteDraft).map((url, i) => React.createElement("div", { key: i, style: { position: "relative" } },
                         React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }),
                         React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×"))))));
@@ -2665,7 +2730,7 @@ function App() {
                     return (React.createElement("div", { key: n.id, onClick: () => { setTab("notes"); setSearchOpen(false); setSearchQuery(""); openViewNote(n, { view: "list", folderId: n.folderId || null }); }, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${(_a = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _a !== void 0 ? _a : C.amber}`, cursor: "pointer" } },
                         React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, n.title),
                         React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 0.2, marginTop: 3 } }, (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
-                        n.content && React.createElement("div", { style: { fontSize: 11, color: C.muted, marginTop: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, n.content)));
+                        n.content && React.createElement("div", { onClick: e => e.stopPropagation(), onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: { fontSize: 11, color: C.muted, marginTop: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, renderLinkedText(n.content))));
                 }))))),
         !searchOpen && tab === "today" && renderMainPage(),
         !searchOpen && tab === "sync" && (React.createElement("div", null,
@@ -2802,7 +2867,7 @@ function App() {
                         React.createElement("button", { onClick: () => openEditAppt(a), style: { padding: "7px 12px", borderRadius: 9, border: "none", background: C.accent, color: C.text, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, "Edit")),
                     React.createElement("button", { onClick: () => exportEventToApple(a), style: { width: "100%", padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2, marginTop: 8 } }, "Send to Apple Calendar"),
                     getImages(a).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, margin: "12px 0" } }, getImages(a).map((url, i) => React.createElement("img", { key: i, src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1", borderRadius: 10, objectFit: "cover", display: "block", cursor: "zoom-in" } }))),
-                    React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", marginTop: 12 } }, a.description || "No description."));
+                    React.createElement("div", { style: { fontSize: 13, color: C.text, lineHeight: 1.7, marginTop: 12 } }, a.description ? renderLinkedText(a.description) : "No description."));
             })() : showApptForm ? (React.createElement("div", { style: { background: C.bg2, borderRadius: 16, padding: 16, border: `1px solid ${C.border}`, marginTop: 14 } },
                 React.createElement("input", { autoFocus: true, placeholder: "Event title", value: apptDraft.title, onChange: e => setApptDraft(d => ({ ...d, title: e.target.value })), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("input", { placeholder: "Location (optional)", value: apptDraft.locationText || "", onChange: e => setApptDraft(d => ({ ...d, locationText: e.target.value })), style: { ...inp, marginBottom: 8 } }),
