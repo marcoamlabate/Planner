@@ -295,7 +295,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v66";
+const APP_VERSION = "v67";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -443,6 +443,32 @@ function noteTextHeightSource(text) {
     const raw = String(text || "");
     return raw.replace(/^\n+/, "").replace(/\n+$/, "");
 }
+function parsePlainTextListLine(line) {
+    const value = String(line || "");
+    const match = value.match(/^(\s*)(•\s*|-\s*|(\d+)\.\s*)(.*)$/);
+    if (!match) return null;
+    const marker = match[2];
+    return {
+        indent: match[1] || "",
+        marker,
+        number: match[3] ? Number(match[3]) : null,
+        kind: marker.trim().startsWith("•") ? "bullet" : (marker.trim().startsWith("-") ? "dash" : "number"),
+        text: match[4] || "",
+        prefixLength: (match[1] || "").length + marker.length
+    };
+}
+function noteListMarker(style, number = 1) {
+    if (style === "bullet") return "• ";
+    if (style === "dash") return "- ";
+    return `${Math.max(1, Number(number) || 1)}. `;
+}
+function noteLineBounds(text, pos) {
+    const value = String(text || "");
+    const safePos = Math.max(0, Math.min(value.length, Number(pos) || 0));
+    const start = value.lastIndexOf("\n", Math.max(0, safePos - 1)) + 1;
+    const endIndex = value.indexOf("\n", safePos);
+    return { start, end: endIndex < 0 ? value.length : endIndex, pos: safePos };
+}
 function shouldRenderNoteTextBlock(block, blocks, index) {
     if (!block || block.type !== "text") return true;
     const all = blocks || [];
@@ -517,36 +543,46 @@ function InlineImageUploadBtn({ onImages, compact = false }) {
             alignItems: "center",
             gap: 6
         }
-    }, compact ? "🖼 Add Image" : "+ Add Images");
+    }, compact ? "Add Image" : "+ Add Images");
     return React.createElement("div", { style: compact ? { margin: 0 } : { marginTop: 14, marginBottom: 22 } },
         React.createElement("input", { ref: ref, type: "file", accept: "image/*", multiple: true, style: { display: "none" }, onChange: async (e) => { await addFiles(e.target.files); e.target.value = ""; } }),
         btn);
 }
-function renderNoteToolbar(onImages) {
+function NoteListIcon() {
+    return React.createElement("svg", { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.4, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" },
+        React.createElement("path", { d: "M8 6h12M8 12h12M8 18h12" }),
+        React.createElement("path", { d: "M3.5 6h.01M3.5 12h.01M3.5 18h.01" }));
+}
+function NoteChevronIcon() {
+    return React.createElement("svg", { width: 13, height: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, React.createElement("path", { d: "m7 10 5 5 5-5" }));
+}
+function renderNoteToolbar({ onImages, showList = false, listMenuOpen = false, onToggleList, onPickList }) {
+    const menuRow = (marker, label, style) => React.createElement("button", {
+        key: style,
+        onMouseDown: e => e.preventDefault(),
+        onTouchStart: e => e.stopPropagation(),
+        onClick: () => onPickList && onPickList(style),
+        style: { width: "100%", display: "flex", alignItems: "center", gap: 11, textAlign: "left", padding: "10px 12px", border: "none", background: "transparent", color: C.text, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 680 }
+    }, React.createElement("span", { style: { width: 24, color: C.accent, fontFamily: UI.mono, fontWeight: 800, fontSize: 15 } }, marker), label);
     return React.createElement("div", {
-        style: {
-            position: "sticky",
-            top: 0,
-            zIndex: 5,
-            margin: "-2px 0 12px",
-            padding: "7px 0",
-            background: `linear-gradient(180deg, ${C.bg0}F7, ${C.bg0}E8)`,
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)"
-        }
+        "data-note-formatting-tray": "true",
+        style: { position: "sticky", top: 4, zIndex: 12, margin: "0 0 14px", padding: "5px 0", alignSelf: "flex-start" }
     },
         React.createElement("div", {
-            style: {
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: 5,
-                borderRadius: 999,
-                border: `1px solid ${C.border}`,
-                background: C.bg3,
-                boxShadow: "0 8px 22px rgba(0,0,0,.14)"
-            }
-        }, React.createElement(InlineImageUploadBtn, { onImages, compact: true })));
+            style: { position: "relative", display: "inline-flex", alignItems: "center", gap: 7, padding: 5, borderRadius: 16, border: `1px solid ${C.border}`, background: "rgba(17,24,39,0.88)", boxShadow: "0 8px 22px rgba(0,0,0,.16)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }
+        },
+            showList && React.createElement(React.Fragment, null,
+                React.createElement("button", {
+                    onMouseDown: e => e.preventDefault(),
+                    onTouchStart: e => e.stopPropagation(),
+                    onClick: () => onToggleList && onToggleList(),
+                    style: { minHeight: 34, padding: "7px 9px", borderRadius: 11, border: "none", background: listMenuOpen ? C.bg4 : "transparent", color: C.text, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 760, display: "inline-flex", alignItems: "center", gap: 6 }
+                }, React.createElement(NoteListIcon, null), "List", React.createElement(NoteChevronIcon, null)),
+                React.createElement("span", { style: { width: 1, height: 20, background: C.border, margin: "0 1px" } }),
+                listMenuOpen && React.createElement("div", {
+                    style: { position: "absolute", top: "calc(100% + 8px)", left: 0, width: 198, padding: 5, borderRadius: 14, border: `1px solid ${C.border}`, background: "rgba(17,24,39,0.97)", boxShadow: "0 14px 30px rgba(0,0,0,.32)", backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)", zIndex: 30 }
+                }, menuRow("•", "Bulleted list", "bullet"), menuRow("-", "Dashed list", "dash"), menuRow("1.", "Numbered list", "number"))),
+            React.createElement(InlineImageUploadBtn, { onImages, compact: true })));
 }
 function stripHeavyDetails(item) {
     return { ...item, description: "", imageUrl: "", imageUrls: [], embeddedImages: {} };
@@ -1231,13 +1267,24 @@ function App() {
     const emptyNote = () => { var _a, _b; return ({ title: "", type: "descriptive", content: "", topics: [""], folderId: (_b = (_a = folders[0]) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : "general", imageUrl: "", imageUrls: [], embeddedImages: {} }); };
     const [noteDraft, setNoteDraft] = useState(emptyNote);
     const noteBodyCursorRef = useRef(null);
+    const noteBodySelectionRef = useRef(null);
     const [activeNoteTextBlockIndex, setActiveNoteTextBlockIndex] = useState(null);
+    const [noteListMenuOpen, setNoteListMenuOpen] = useState(false);
     useEffect(() => {
         setFolders(p => {
             const list = Array.isArray(p) ? p : [];
             return list.some(f => f.id === "general") ? list : [{ ...DEFAULT_FOLDERS[0] }, ...list];
         });
     }, []);
+    useEffect(() => {
+        if (!noteListMenuOpen) return;
+        const closeMenu = e => {
+            const target = e && e.target;
+            if (!target || !target.closest || !target.closest('[data-note-formatting-tray="true"]')) setNoteListMenuOpen(false);
+        };
+        document.addEventListener("pointerdown", closeMenu);
+        return () => document.removeEventListener("pointerdown", closeMenu);
+    }, [noteListMenuOpen]);
     function startEditMot() { setMotDraft(motivation); setEditMot(true); setTimeout(() => { var _a; return (_a = motRef.current) === null || _a === void 0 ? void 0 : _a.focus(); }, 50); }
     function saveMot() { if (motDraft.trim())
         setMotivation(motDraft.trim()); setEditMot(false); }
@@ -1939,6 +1986,7 @@ function App() {
         setEditingNoteId(null);
         setActiveNoteActionsId(null);
         setActiveNoteTextBlockIndex(null);
+        setNoteListMenuOpen(false);
     }
     function openNotesList(folderId) {
         setSelFolderId(folderId || null);
@@ -1948,6 +1996,7 @@ function App() {
         setEditingNoteId(null);
         setActiveNoteActionsId(null);
         setShowFolderMgr(false);
+        setNoteListMenuOpen(false);
     }
     function openAddNote(folderId) {
         const now = Date.now();
@@ -1960,6 +2009,7 @@ function App() {
         setSelectedNoteId(rec.id);
         setNoteReturnTarget({ view: "list", folderId: noteView === "list" ? selFolderId : targetFolder });
         setNoteView("view");
+        setNoteListMenuOpen(false);
     }
     function openEditNote(n) {
         openViewNote(n);
@@ -1973,6 +2023,7 @@ function App() {
         setNoteReturnTarget(returnTarget || { view: noteView === "list" ? "list" : "overview", folderId: selFolderId });
         setActiveNoteActionsId(null);
         setNoteView("view");
+        setNoteListMenuOpen(false);
     }
     function returnFromNotePage() {
         const target = noteReturnTarget || { view: "overview", folderId: null };
@@ -1980,6 +2031,7 @@ function App() {
         setEditingNoteId(null);
         setActiveNoteActionsId(null);
         setActiveNoteTextBlockIndex(null);
+        setNoteListMenuOpen(false);
         if (target.view === "list") {
             setSelFolderId(target.folderId || null);
             setNoteView("list");
@@ -1995,18 +2047,138 @@ function App() {
         setNoteDraft(d => ({ ...d, ...patch, updatedAt }));
         setNotes(p => p.map(n => n.id === id ? { ...n, ...patch, updatedAt } : n));
     }
-    function rememberNoteBodyCursor(blockStart, e) {
+    function rememberNoteBodyCursor(blockStart, e, blockIndex = null, blockEnd = null) {
         const id = selectedNoteId || editingNoteId;
         const el = e && e.target;
         if (!id || !el || typeof el.selectionStart !== "number") return;
-        noteBodyCursorRef.current = { noteId: id, pos: blockStart + el.selectionStart };
+        const start = blockStart + el.selectionStart;
+        const end = blockStart + (typeof el.selectionEnd === "number" ? el.selectionEnd : el.selectionStart);
+        noteBodyCursorRef.current = { noteId: id, pos: start };
+        noteBodySelectionRef.current = { noteId: id, start, end, blockStart, blockEnd: Number.isFinite(blockEnd) ? blockEnd : blockStart + String(el.value || "").length, blockIndex };
     }
     function replaceNoteContentRange(start, end, value) {
         const current = String(noteDraft.content || "");
         const next = current.slice(0, start) + value + current.slice(end);
         const id = selectedNoteId || editingNoteId;
-        noteBodyCursorRef.current = { noteId: id, pos: start + String(value || "").length };
+        const remembered = noteBodySelectionRef.current;
+        noteBodyCursorRef.current = remembered && remembered.noteId === id && remembered.blockStart === start ? { noteId: id, pos: remembered.start } : { noteId: id, pos: start + String(value || "").length };
         updateOpenNote({ content: next });
+    }
+    function restoreNoteTextSelection(blockIndex, absoluteStart, absoluteEnd = absoluteStart) {
+        const id = selectedNoteId || editingNoteId;
+        if (!id) return;
+        noteBodyCursorRef.current = { noteId: id, pos: absoluteStart };
+        noteBodySelectionRef.current = { noteId: id, start: absoluteStart, end: absoluteEnd, blockIndex };
+        setActiveNoteTextBlockIndex(blockIndex);
+        requestAnimationFrame(() => {
+            const el = document.querySelector(`textarea[data-note-body-block-index="${blockIndex}"]`);
+            if (!el) return;
+            const blockStart = Number(el.getAttribute("data-note-block-start")) || 0;
+            const value = String(el.value || "");
+            const start = Math.max(0, Math.min(value.length, absoluteStart - blockStart));
+            const end = Math.max(start, Math.min(value.length, absoluteEnd - blockStart));
+            el.focus();
+            el.setSelectionRange(start, end);
+        });
+    }
+    function updateNoteTextBlock(block, blockIndex, nextText, localStart, localEnd = localStart) {
+        const current = String(noteDraft.content || "");
+        const nextContent = current.slice(0, block.start) + nextText + current.slice(block.end);
+        updateOpenNote({ content: nextContent });
+        restoreNoteTextSelection(blockIndex, block.start + localStart, block.start + localEnd);
+    }
+    function getActiveNoteTextSelection() {
+        const id = selectedNoteId || editingNoteId;
+        if (!id) return null;
+        const current = String(noteDraft.content || "");
+        const remembered = noteBodySelectionRef.current;
+        let start = remembered && remembered.noteId === id && Number.isFinite(remembered.start) ? remembered.start : (noteBodyCursorRef.current && noteBodyCursorRef.current.noteId === id ? noteBodyCursorRef.current.pos : current.length);
+        let end = remembered && remembered.noteId === id && Number.isFinite(remembered.end) ? remembered.end : start;
+        start = Math.max(0, Math.min(current.length, start));
+        end = Math.max(start, Math.min(current.length, end));
+        const parsed = parseNoteContentBlocks(current).filter((block, idx, all) => shouldRenderNoteTextBlock(block, all, idx));
+        let blockIndex = remembered && remembered.noteId === id && Number.isFinite(remembered.blockIndex) ? remembered.blockIndex : -1;
+        let block = blockIndex >= 0 ? parsed[blockIndex] : null;
+        if (!block || block.type !== "text" || start < block.start || start > block.end) {
+            blockIndex = parsed.findIndex(b => b.type === "text" && start >= b.start && start <= b.end);
+            block = blockIndex >= 0 ? parsed[blockIndex] : null;
+        }
+        if (!block || block.type !== "text") {
+            blockIndex = parsed.map((b, i) => ({ b, i })).filter(x => x.b.type === "text").map(x => x.i).pop();
+            block = Number.isFinite(blockIndex) ? parsed[blockIndex] : null;
+            if (!block) return null;
+            start = end = block.end;
+        }
+        return { id, start, end, block, blockIndex };
+    }
+    function applyNoteListStyle(style) {
+        setNoteListMenuOpen(false);
+        if ((noteDraft.type || "descriptive") === "topic") return;
+        const selection = getActiveNoteTextSelection();
+        if (!selection) return;
+        const { block, blockIndex } = selection;
+        const localStart = Math.max(0, selection.start - block.start);
+        const localEnd = Math.max(localStart, selection.end - block.start);
+        const text = String(block.text || "");
+        const bounds = noteLineBounds(text, localStart);
+        const line = text.slice(bounds.start, bounds.end);
+        if (/\[\[image:[^\]]+\]\]/.test(line)) return;
+        const parsed = parsePlainTextListLine(line);
+        const leading = (line.match(/^\s*/) || [""])[0];
+        let nextLine = line;
+        let nextStart = localStart;
+        let nextEnd = localEnd;
+        if (parsed && parsed.kind === style) {
+            restoreNoteTextSelection(blockIndex, selection.start, selection.end);
+            return;
+        }
+        const marker = noteListMarker(style);
+        if (parsed) {
+            const newPrefix = parsed.indent + marker;
+            nextLine = newPrefix + parsed.text;
+            const delta = newPrefix.length - parsed.prefixLength;
+            const adjust = pos => pos <= parsed.prefixLength ? newPrefix.length : pos + delta;
+            nextStart = bounds.start + adjust(localStart - bounds.start);
+            nextEnd = bounds.start + adjust(localEnd - bounds.start);
+        }
+        else if (!line.trim()) {
+            const newPrefix = leading + marker;
+            nextLine = newPrefix;
+            nextStart = nextEnd = bounds.start + newPrefix.length;
+        }
+        else {
+            const newPrefix = leading + marker;
+            nextLine = newPrefix + line.slice(leading.length);
+            const adjust = pos => pos <= leading.length ? newPrefix.length : pos + marker.length;
+            nextStart = bounds.start + adjust(localStart - bounds.start);
+            nextEnd = bounds.start + adjust(localEnd - bounds.start);
+        }
+        const nextText = text.slice(0, bounds.start) + nextLine + text.slice(bounds.end);
+        updateNoteTextBlock(block, blockIndex, nextText, nextStart, nextEnd);
+    }
+    function handleDescriptiveNoteListEnter(block, blockIndex, e) {
+        if (!e || e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || (e.nativeEvent && e.nativeEvent.isComposing)) return;
+        const el = e.target;
+        if (!el || el.selectionStart !== el.selectionEnd) return;
+        const text = String(block.text || "");
+        const caret = el.selectionStart;
+        const bounds = noteLineBounds(text, caret);
+        const line = text.slice(bounds.start, bounds.end);
+        const parsed = parsePlainTextListLine(line);
+        if (!parsed) return;
+        e.preventDefault();
+        let nextText, nextCaret;
+        if (!String(parsed.text || "").trim()) {
+            nextText = text.slice(0, bounds.start) + parsed.indent + text.slice(bounds.end);
+            nextCaret = bounds.start + parsed.indent.length;
+        }
+        else {
+            const marker = noteListMarker(parsed.kind, parsed.kind === "number" ? parsed.number + 1 : 1);
+            const insertion = "\n" + parsed.indent + marker;
+            nextText = text.slice(0, caret) + insertion + text.slice(caret);
+            nextCaret = caret + insertion.length;
+        }
+        updateNoteTextBlock(block, blockIndex, nextText, nextCaret, nextCaret);
     }
     function insertInlineNoteImages(urls) {
         const clean = (urls || []).filter(Boolean);
@@ -2662,8 +2834,14 @@ function App() {
             React.createElement("input", { placeholder: "Untitled", value: noteDraft.title || "", onChange: e => updateOpenNote({ title: e.target.value }), style: { width: "100%", boxSizing: "border-box", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 30, fontWeight: 820, letterSpacing: -0.8, marginBottom: 10 } }),
             React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14, alignItems: "center" } },
                 folders.map(f => React.createElement("button", { key: f.id, onClick: () => updateOpenNote({ folderId: f.id }), style: { padding: "5px 9px", borderRadius: 999, border: (noteDraft.folderId || n.folderId) === f.id ? `1px solid ${f.color}` : `1px solid ${C.border}`, background: (noteDraft.folderId || n.folderId) === f.id ? f.color + "22" : C.bg2, color: (noteDraft.folderId || n.folderId) === f.id ? f.color : C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, f.name)),
-                React.createElement("button", { onClick: () => updateOpenNote({ type: (noteDraft.type || n.type) === "topic" ? "descriptive" : "topic" }), style: { padding: "5px 9px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, (noteDraft.type || n.type) === "topic" ? "Topic" : "Text")),
-            renderNoteToolbar(insertInlineNoteImages),
+                React.createElement("button", { onClick: () => { setNoteListMenuOpen(false); updateOpenNote({ type: (noteDraft.type || n.type) === "topic" ? "descriptive" : "topic" }); }, style: { padding: "5px 9px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.bg2, color: C.muted, cursor: "pointer", fontFamily: "inherit", fontSize: 10, fontWeight: 720 } }, (noteDraft.type || n.type) === "topic" ? "Topic" : "Text")),
+            renderNoteToolbar({
+                onImages: insertInlineNoteImages,
+                showList: (noteDraft.type || n.type) !== "topic",
+                listMenuOpen: noteListMenuOpen,
+                onToggleList: () => setNoteListMenuOpen(v => !v),
+                onPickList: applyNoteListStyle
+            }),
             (noteDraft.type || n.type) === "topic" ? React.createElement("div", { style: { marginBottom: 12 } },
                 topics.map((topic, i) => React.createElement("div", { key: i, style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 8 } },
                     React.createElement("span", { style: { color: folder.color || C.amber, fontSize: 18, fontWeight: 900 } }, "•"),
@@ -2677,7 +2855,7 @@ function App() {
                     parseNoteContentBlocks(noteDraft.content).filter((block, idx, all) => shouldRenderNoteTextBlock(block, all, idx)).map((block, i, arr) => block.type === "image" ? (React.createElement("div", { key: `img-${block.id}-${i}`, style: { position: "relative", margin: "10px 0 12px" } },
                         getNoteInlineImageUrl(noteDraft, block.id) ? React.createElement("img", { src: getNoteInlineImageUrl(noteDraft, block.id), alt: "", onClick: () => openPlannerImage(getNoteInlineImageUrl(noteDraft, block.id)), style: { width: "100%", maxHeight: 520, borderRadius: 14, objectFit: "cover", display: "block", cursor: "zoom-in", border: `1px solid ${C.border}` } }) : React.createElement("div", { style: { color: C.dim, fontSize: 12, padding: "8px 0" } }, "[Missing image]"),
                         React.createElement("button", { onClick: () => removeInlineNoteImage(block.id), style: { position: "absolute", top: 8, right: 8, background: "#000000AA", border: "none", borderRadius: 8, width: 30, height: 30, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 16 } }, "×"))) :
-                        ((activeNoteTextBlockIndex === i) || (!String(noteDraft.content || "").trim() && arr.length === 1)) ? React.createElement("textarea", { key: `edit-text-${i}`, autoFocus: activeNoteTextBlockIndex === i, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e), onClick: e => rememberNoteBodyCursor(block.start, e), onKeyUp: e => rememberNoteBodyCursor(block.start, e), onSelect: e => rememberNoteBodyCursor(block.start, e), onFocus: e => { setActiveNoteTextBlockIndex(i); rememberNoteBodyCursor(block.start, e); }, onBlur: () => setActiveNoteTextBlockIndex(null), rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), height: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 0, display: "block" } }) : React.createElement("div", { key: `read-text-${i}`, onClick: () => { noteBodyCursorRef.current = { noteId: selectedNoteId || editingNoteId, pos: block.end }; setActiveNoteTextBlockIndex(i); }, style: { width: "100%", boxSizing: "border-box", minHeight: String(block.text || "").trim() ? 28 : 26, padding: "2px 0", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, cursor: "text" } }, renderLinkedText(block.text, {}, i === 0 ? "Start writing..." : ""))),
+                        ((activeNoteTextBlockIndex === i) || (!String(noteDraft.content || "").trim() && arr.length === 1)) ? React.createElement("textarea", { key: `edit-text-${i}`, autoFocus: activeNoteTextBlockIndex === i, placeholder: i === 0 ? "Start writing..." : "Continue writing...", value: block.text, onChange: e => { rememberNoteBodyCursor(block.start, e, i, block.end); replaceNoteContentRange(block.start, block.end, e.target.value); }, onInput: e => rememberNoteBodyCursor(block.start, e, i, block.end), onClick: e => rememberNoteBodyCursor(block.start, e, i, block.end), onKeyUp: e => rememberNoteBodyCursor(block.start, e, i, block.end), onKeyDown: e => handleDescriptiveNoteListEnter(block, i, e), onSelect: e => rememberNoteBodyCursor(block.start, e, i, block.end), onFocus: e => { setActiveNoteTextBlockIndex(i); rememberNoteBodyCursor(block.start, e, i, block.end); }, onBlur: () => { setActiveNoteTextBlockIndex(null); setNoteListMenuOpen(false); }, "data-note-body-block-index": i, "data-note-block-start": block.start, rows: 1, style: { width: "100%", boxSizing: "border-box", minHeight: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), height: estimateNoteTextHeight(noteTextHeightSource(block.text), arr.length === 1 ? 420 : (String(block.text || "").trim() ? 44 : 26)), overflow: "hidden", border: "none", outline: "none", background: "transparent", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, resize: "none", marginBottom: 0, display: "block" } }) : React.createElement("div", { key: `read-text-${i}`, onClick: () => { noteBodyCursorRef.current = { noteId: selectedNoteId || editingNoteId, pos: block.end }; setActiveNoteTextBlockIndex(i); }, style: { width: "100%", boxSizing: "border-box", minHeight: String(block.text || "").trim() ? 28 : 26, padding: "2px 0", color: C.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.65, cursor: "text" } }, renderLinkedText(block.text, {}, i === 0 ? "Start writing..." : ""))),
                     getUnpositionedNoteImages(noteDraft).length > 0 && React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "12px 0" } }, getUnpositionedNoteImages(noteDraft).map((url, i) => React.createElement("div", { key: i, style: { position: "relative" } },
                         React.createElement("img", { src: url, alt: "", onClick: () => openPlannerImage(url), style: { width: "100%", aspectRatio: "1.4", borderRadius: 12, objectFit: "cover", display: "block" } }),
                         React.createElement("button", { onClick: () => removeUnpositionedNoteImage(url), style: { position: "absolute", top: 6, right: 6, background: "#000000AA", border: "none", borderRadius: 7, width: 26, height: 26, cursor: "pointer", color: C.red, fontWeight: 900, fontSize: 15 } }, "×"))))));
