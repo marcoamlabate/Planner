@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v67-notes-formatting-lists';
+const CACHE_NAME = 'adhd-planner-v68-reliability-empty-states';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

@@ -61,6 +61,13 @@ const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
     const m = (i % 4) * 15;
     return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
 });
+function notifyPlannerStorageStatus(key, ok) {
+    try {
+        if (typeof window !== "undefined")
+            window.dispatchEvent(new CustomEvent("planner-storage-save-status", { detail: { key, ok: !!ok } }));
+    }
+    catch { }
+}
 function useLocalState(key, init) {
     const [val, setVal] = useState(() => {
         try {
@@ -71,11 +78,65 @@ function useLocalState(key, init) {
             return init;
         }
     });
-    useEffect(() => { try {
-        localStorage.setItem(key, JSON.stringify(val));
-    }
-    catch { } }, [key, val]);
+    useEffect(() => {
+        try {
+            localStorage.setItem(key, JSON.stringify(val));
+            notifyPlannerStorageStatus(key, true);
+        }
+        catch {
+            // Keep the current state in memory, but make a failed write visible to the app.
+            notifyPlannerStorageStatus(key, false);
+        }
+    }, [key, val]);
     return [val, setVal];
+}
+function clonePlannerSnapshot(value) {
+    try { return JSON.parse(JSON.stringify(value)); }
+    catch { return value && typeof value === "object" ? { ...value } : value; }
+}
+function estimatePlannerDataBytes(data) {
+    try {
+        const text = JSON.stringify(data || {});
+        if (typeof TextEncoder !== "undefined") return new TextEncoder().encode(text).length;
+        return unescape(encodeURIComponent(text)).length;
+    }
+    catch { return 0; }
+}
+function formatPlannerDataSize(bytes) {
+    const n = Number(bytes) || 0;
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`;
+    return `${(n / (1024 * 1024)).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+}
+function getBackupHealth(lastExportAt) {
+    if (!lastExportAt) return { label: "No backup export recorded yet.", color: C.muted };
+    const t = new Date(lastExportAt).getTime();
+    if (!Number.isFinite(t)) return { label: "No backup export recorded yet.", color: C.muted };
+    const days = Math.floor(Math.max(0, Date.now() - t) / 86400000);
+    if (days <= 7) return { label: "Backup export is recent.", color: C.green };
+    if (days <= 21) return { label: "A fresh backup is recommended.", color: C.amber };
+    return { label: "Backup export is overdue.", color: C.amber };
+}
+function formatBackupExportTime(value) {
+    if (!value) return "Never";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Unknown";
+    return d.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function EmptyState({ title, description, actionLabel, onAction, icon = "" }) {
+    return React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: "28px 20px", textAlign: "center", margin: "12px 0 14px" }) },
+        icon ? React.createElement("div", { style: { color: C.dim, fontSize: 20, marginBottom: 9, lineHeight: 1 } }, icon) : null,
+        React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 760, lineHeight: 1.3 } }, title),
+        description ? React.createElement("div", { style: { color: C.muted, fontSize: 12, lineHeight: 1.5, margin: "6px auto 0", maxWidth: 300 } }, description) : null,
+        actionLabel && onAction ? React.createElement("button", { onClick: onAction, style: { marginTop: 14, minHeight: 38, padding: "8px 13px", borderRadius: 12, border: `1px solid ${C.accent}44`, background: C.accent + "18", color: C.accent, cursor: "pointer", fontFamily: "inherit", fontWeight: 760, fontSize: 12 } }, actionLabel) : null);
+}
+function UndoToast({ record, onUndo, onDismiss }) {
+    if (!record) return null;
+    return React.createElement("div", { style: { position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(env(safe-area-inset-bottom, 0px) + 18px)", zIndex: 900, width: "min(calc(100vw - 28px), 480px)", pointerEvents: "none" } },
+        React.createElement("div", { style: { ...cardSurface({ borderRadius: 16, padding: "10px 10px 10px 14px", background: "rgba(17,24,39,.96)", boxShadow: "0 12px 30px rgba(0,0,0,.30)" }), display: "flex", alignItems: "center", gap: 10, pointerEvents: "auto" } },
+            React.createElement("div", { style: { color: C.text, fontSize: 13, fontWeight: 700, flex: 1, minWidth: 0 } }, record.label),
+            React.createElement("button", { onClick: onUndo, style: { minHeight: 38, padding: "8px 12px", borderRadius: 11, border: "none", background: C.accent + "1E", color: C.accent, cursor: "pointer", fontFamily: "inherit", fontWeight: 850, fontSize: 12 } }, "UNDO"),
+            React.createElement("button", { onClick: onDismiss, ariaLabel: "Dismiss", style: { width: 34, height: 34, borderRadius: 10, border: "none", background: "transparent", color: C.muted, cursor: "pointer", fontSize: 18, lineHeight: 1 } }, "×")));
 }
 function useWindowWidth() {
     const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 390);
@@ -295,7 +356,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v67";
+const APP_VERSION = "v68";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -984,7 +1045,7 @@ function DayTimeline({ date, appts, onEdit, onDelete, selectedApptId, onBack, on
         noTime.length > 0 && React.createElement("div", { style: { marginBottom: 10 } },
             React.createElement("div", { style: { fontSize: 9, color: C.muted, fontWeight: 700, letterSpacing: 0.4, marginBottom: 6 } }, "NO TIME"),
             noTime.map(a => React.createElement(React.Fragment, { key: a.id }, React.createElement(ApptCard, { appt: a, onDelete: onDelete, onEdit: onEdit, onExport: onExport }), selectedApptId === a.id && React.createElement(EventViewPanel, { a: a, onBack: onBack, onEdit: onRealEdit || onEdit, onExport: onExport })))),
-        timed.length === 0 ? React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, noTime.length ? "" : "No timed events.")
+        timed.length === 0 ? (noTime.length ? null : React.createElement(EmptyState, { title: "Nothing scheduled for this day.", description: "Add an event when you are ready.", icon: "□" }))
             : React.createElement("div", { style: { position: "relative", minHeight: timelineHeight, borderLeft: `1px solid ${C.border}`, marginLeft: 50, paddingBottom: 20 } },
                 Array.from({ length: endHour - startHour + 1 }).map((_, i) => {
                     const hour = startHour + i;
@@ -1172,6 +1233,9 @@ function App() {
     const windowWidth = useWindowWidth();
     const isWide = windowWidth >= 640;
     const [tab, setTab] = useState("today");
+    const [storageSaveFailures, setStorageSaveFailures] = useState({});
+    const [undoRecord, setUndoRecord] = useState(null);
+    const undoTimerRef = useRef(null);
     const [motivation, setMotivation] = useLocalState("adhd3_mot", "don’t interact with your mind, command it");
     const [focusColor, setFocusColor] = useLocalState("adhd3_focus_color", C.text);
     const [editMot, setEditMot] = useState(false);
@@ -1179,6 +1243,21 @@ function App() {
     const motRef = useRef(null);
     const today = new Date();
     useEffect(() => { if (motivation === "Lock in. Every task done is a win.") setMotivation("don’t interact with your mind, command it"); }, []);
+    useEffect(() => {
+        const handleStorageStatus = e => {
+            const detail = (e && e.detail) || {};
+            if (!detail.key) return;
+            setStorageSaveFailures(prev => {
+                const next = { ...(prev || {}) };
+                if (detail.ok) delete next[detail.key];
+                else next[detail.key] = true;
+                return next;
+            });
+        };
+        window.addEventListener("planner-storage-save-status", handleStorageStatus);
+        return () => window.removeEventListener("planner-storage-save-status", handleStorageStatus);
+    }, []);
+    useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }, []);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const searchRef = useRef(null);
@@ -1186,6 +1265,7 @@ function App() {
     const importRef = useRef(null);
     const [reviewDraft, setReviewDraft] = useState({ done: "", move: "", tomorrow: "" });
     const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
+    const [lastBackupExportAt, setLastBackupExportAt] = useLocalState("adhd3_last_backup_export_at", "");
     const [meds, setMeds] = useLocalState("adhd3_meds", []);
     const [medLogs, setMedLogs] = useLocalState("adhd3_med_logs", {});
     const [showMedForm, setShowMedForm] = useState(false);
@@ -1286,6 +1366,35 @@ function App() {
         return () => document.removeEventListener("pointerdown", closeMenu);
     }, [noteListMenuOpen]);
     function startEditMot() { setMotDraft(motivation); setEditMot(true); setTimeout(() => { var _a; return (_a = motRef.current) === null || _a === void 0 ? void 0 : _a.focus(); }, 50); }
+    function offerUndo(label, restore) {
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+        const record = { id: Date.now() + Math.random(), label, restore };
+        setUndoRecord(record);
+        undoTimerRef.current = setTimeout(() => {
+            setUndoRecord(current => current && current.id === record.id ? null : current);
+            undoTimerRef.current = null;
+        }, 7000);
+    }
+    function dismissUndo() {
+        if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+        undoTimerRef.current = null;
+        setUndoRecord(null);
+    }
+    function undoLastAction() {
+        const record = undoRecord;
+        dismissUndo();
+        try { if (record && typeof record.restore === "function") record.restore(); }
+        catch (err) { console.warn("[Planner] Undo restore failed.", err); }
+    }
+    function renderStorageSaveWarning() {
+        if (!Object.keys(storageSaveFailures || {}).length) return null;
+        return React.createElement("div", { style: { ...cardSurface({ borderRadius: 16, padding: "12px 14px", marginBottom: 14, border: `1px solid ${C.red}55`, background: C.red + "12" }), color: C.text } },
+            React.createElement("div", { style: { fontSize: 13, fontWeight: 780, marginBottom: 4, color: C.text } }, "Planner could not save the latest change locally."),
+            React.createElement("div", { style: { fontSize: 12, color: C.muted, lineHeight: 1.45 } }, "Export a backup before closing the app."));
+    }
+    function renderUndoToast() {
+        return React.createElement(UndoToast, { record: undoRecord, onUndo: undoLastAction, onDismiss: dismissUndo });
+    }
     function saveMot() { if (motDraft.trim())
         setMotivation(motDraft.trim()); setEditMot(false); }
     useEffect(() => { if (searchOpen)
@@ -1523,9 +1632,28 @@ function App() {
     }
     function deleteTask(id) {
         const existing = tasks.find(t => t.id === id);
-        if (existing)
-            markPendingAppleChange("task", existing, "delete", "deleted");
+        if (!existing) return;
+        const storedRecord = rawTasks.find(t => t.id === id) || existing;
+        const snapshot = clonePlannerSnapshot(storedRecord);
+        const index = rawTasks.findIndex(t => t.id === id);
+        const plannerId = taskPlannerId(existing);
+        const priorPending = clonePlannerSnapshot((pendingAppleChanges || {})[plannerId]);
+        markPendingAppleChange("task", existing, "delete", "deleted");
         setTasks((p) => p.filter(t => t.id !== id));
+        offerUndo("Task deleted", () => {
+            setTasks(p => {
+                if ((p || []).some(t => t.id === snapshot.id)) return p;
+                const next = [...(p || [])];
+                next.splice(Math.max(0, Math.min(index < 0 ? next.length : index, next.length)), 0, snapshot);
+                return next;
+            });
+            setPendingAppleChanges(p => {
+                const next = { ...(p || {}) };
+                if (priorPending) next[plannerId] = priorPending;
+                else delete next[plannerId];
+                return next;
+            });
+        });
     }
     function getTodayList(dateStr = selectedTodayTaskDate) {
         return [...((todayTasksByDate && todayTasksByDate[dateStr]) || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -1761,9 +1889,28 @@ function App() {
     }
     function deleteAppt(id) {
         const existing = appts.find(a => a.id === id);
-        if (existing)
-            markPendingAppleChange("event", existing, "delete", "deleted");
+        if (!existing) return;
+        const storedRecord = rawAppts.find(a => a.id === id) || existing;
+        const snapshot = clonePlannerSnapshot(storedRecord);
+        const index = rawAppts.findIndex(a => a.id === id);
+        const plannerId = eventPlannerId(existing);
+        const priorPending = clonePlannerSnapshot((pendingAppleChanges || {})[plannerId]);
+        markPendingAppleChange("event", existing, "delete", "deleted");
         setAppts((p) => p.filter(a => a.id !== id));
+        offerUndo("Event deleted", () => {
+            setAppts(p => {
+                if ((p || []).some(a => a.id === snapshot.id)) return p;
+                const next = [...(p || [])];
+                next.splice(Math.max(0, Math.min(index < 0 ? next.length : index, next.length)), 0, snapshot);
+                return next;
+            });
+            setPendingAppleChanges(p => {
+                const next = { ...(p || {}) };
+                if (priorPending) next[plannerId] = priorPending;
+                else delete next[plannerId];
+                return next;
+            });
+        });
     }
     function toggleColorFilter(c) { setApptColorFilter(prev => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; }); }
     const filteredAppts = apptColorFilter.size === 0 ? appts : appts.filter(a => apptColorFilter.has(a.color));
@@ -2211,8 +2358,16 @@ function App() {
         noteBodyCursorRef.current = { noteId: id, pos: markerIndex >= 0 ? markerIndex + markers[markers.length - 1].length + 1 : nextContent.length };
         updateOpenNote({ content: nextContent, embeddedImages: embedded, ...makeImageData(nextImages) });
     }
+    function restoreOpenNoteSnapshot(snapshot) {
+        const id = selectedNoteId || editingNoteId || (snapshot && snapshot.id);
+        if (!snapshot || !id) return;
+        const clean = clonePlannerSnapshot(snapshot);
+        setNoteDraft(noteToDraft(clean));
+        setNotes(p => p.map(n => n.id === id ? { ...clean } : n));
+    }
     function removeInlineNoteImage(imageId) {
         if (!imageId) return;
+        const before = clonePlannerSnapshot({ ...(notes.find(n => n.id === (selectedNoteId || editingNoteId)) || {}), ...noteDraft, id: selectedNoteId || editingNoteId });
         const marker = inlineImageMarker(imageId);
         const embedded = { ...getNoteEmbeddedImages(noteDraft) };
         const removedUrl = embedded[imageId];
@@ -2221,10 +2376,13 @@ function App() {
         const stillUsed = removedUrl && Object.values(embedded).includes(removedUrl);
         const nextImages = stillUsed || !removedUrl ? getImages(noteDraft) : getImages(noteDraft).filter(url => url !== removedUrl);
         updateOpenNote({ content, embeddedImages: embedded, ...makeImageData(nextImages) });
+        offerUndo("Image removed", () => restoreOpenNoteSnapshot(before));
     }
     function removeUnpositionedNoteImage(url) {
+        const before = clonePlannerSnapshot({ ...(notes.find(n => n.id === (selectedNoteId || editingNoteId)) || {}), ...noteDraft, id: selectedNoteId || editingNoteId });
         const nextImages = getImages(noteDraft).filter(img => img !== url);
         updateOpenNote(makeImageData(nextImages));
+        offerUndo("Image removed", () => restoreOpenNoteSnapshot(before));
     }
     function updateOpenNoteTopic(index, value) {
         const topics = [...(noteDraft.topics || [""])];
@@ -2280,8 +2438,20 @@ function App() {
         setEditingNoteId(null);
     }
     function deleteNote(id) {
+        const existing = notes.find(n => n.id === id);
+        if (!existing) return;
+        const snapshot = clonePlannerSnapshot(existing);
+        const index = notes.findIndex(n => n.id === id);
         setNotes(p => p.filter(n => n.id !== id));
         if (selectedNoteId === id || editingNoteId === id) returnFromNotePage();
+        offerUndo("Note deleted", () => {
+            setNotes(p => {
+                if ((p || []).some(n => n.id === snapshot.id)) return p;
+                const next = [...(p || [])];
+                next.splice(Math.max(0, Math.min(index < 0 ? next.length : index, next.length)), 0, snapshot);
+                return next;
+            });
+        });
     }
     function addFolder() {
         if (!folderDraft.name.trim()) return;
@@ -2326,19 +2496,23 @@ function App() {
     function toggleMedDose(key) {
         setMedLogs(p => ({ ...p, [key]: !p[key] }));
     }
-    function exportBackup() {
-        const data = {
+    function buildBackupData() {
+        return {
             version: 2,
             exportedAt: new Date().toISOString(),
             motivation, focusColor, tasks, todayTasksByDate, categories, taskTags: normalizeTaskTags(taskTags), eventCategories, appts, notes, folders, reviews, meds, medLogs, pendingAppleChanges, showDoneTasks
         };
+    }
+    function exportBackup() {
+        const data = buildBackupData();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
         a.download = `adhd-planner-backup-${todayStr()}.json`;
         a.click();
-        URL.revokeObjectURL(url);
+        setLastBackupExportAt(new Date().toISOString());
+        setTimeout(() => URL.revokeObjectURL(url), 0);
     }
     async function importBackupFile(file) {
         try {
@@ -2489,6 +2663,8 @@ function App() {
     const taskProgressPct = taskProgressTotal ? Math.round((taskProgressDone / taskProgressTotal) * 100) : 0;
     const taskProgressLabel = taskSubTab === "overview" ? "All Tasks" : taskSubTab === "today" ? (selectedTodayTaskDate === todayStr() ? "Today Tasks" : weekdayLabel(selectedTodayTaskDate) + " Tasks") : taskPageTitle + " Tasks";
     const pendingAppleList = Object.values(pendingAppleChanges || {}).filter(Boolean).sort((a, b) => String(b.changedAt || "").localeCompare(String(a.changedAt || "")));
+    const backupDataBytes = useMemo(() => estimatePlannerDataBytes(buildBackupData()), [motivation, focusColor, rawTasks, todayTasksByDate, categories, taskTags, eventCategories, rawAppts, notes, folders, reviews, meds, medLogs, pendingAppleChanges, showDoneTasks]);
+    const backupHealth = getBackupHealth(lastBackupExportAt);
     const openTaskForTodayDashboard = task => { setTab("tasks"); openTaskPage("all"); openEditTask(task); };
     const openEventForTodayDashboard = appt => { setTab("calendar"); openEditAppt(appt); };
     const sortDashboardTasks = list => [...list].sort((a, b) => {
@@ -2624,7 +2800,7 @@ function App() {
                     React.createElement("button", { onClick: () => { setTodayTaskDraft(emptyTodayTask()); setShowTodayTaskForm(false); }, style: { flex: 1, padding: 10, borderRadius: 10, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontWeight: 800, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Cancel"),
                     React.createElement("button", { onClick: saveTodayTask, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontWeight: 900, fontSize: 11, fontFamily: "inherit", letterSpacing: 0.2 } }, "Add"))),
             visibleTodayTasks.length ? visibleTodayTasks.map((t, i) => React.createElement(TodayTaskCard, { key: t.id, task: t, onToggle: id => toggleTodayTask(id, selectedTodayTaskDate), onDelete: id => deleteTodayTask(id, selectedTodayTaskDate), onMoveUp: () => moveTodayTask(t.id, -1, selectedTodayTaskDate), onMoveDown: () => moveTodayTask(t.id, 1, selectedTodayTaskDate), canMoveUp: i > 0, canMoveDown: i < visibleTodayTasks.length - 1 }))
-                : React.createElement("div", { style: { textAlign: "center", padding: "34px 0", color: C.muted } }, React.createElement("div", { style: { fontSize: 24, marginBottom: 10 } }, "[ ]"), React.createElement("div", { style: { fontSize: 11, fontWeight: 800, letterSpacing: 0.4 } }, selectedTodayTaskDate === todayStr() ? "Today is empty" : "No tasks on this day")),
+                : !showTodayTaskForm && React.createElement(EmptyState, { title: "Nothing planned for this day.", description: selectedTodayCanEdit ? "Add the next thing while it is on your mind." : "No tasks were planned for this day.", actionLabel: selectedTodayCanEdit ? "Add Today Task" : "", onAction: selectedTodayCanEdit ? () => setShowTodayTaskForm(true) : null, icon: "✓" }),
             React.createElement("button", { onClick: () => setShowDoneTasks(v => !v), style: { width: "100%", marginTop: 14, padding: 10, borderRadius: 12, border: `1px solid ${showDoneTasks ? C.green : C.border}`, background: showDoneTasks ? C.green + "22" : C.bg2, color: showDoneTasks ? C.green : C.muted, cursor: "pointer", fontWeight: 900, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2 } }, showDoneTasks ? "Hide Done Tasks" : "Show Done Tasks"),
             renderTasksBackButton());
     }
@@ -2669,9 +2845,7 @@ function App() {
             relevantTasks.filter(t => t.done).length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u2713", label: "DONE", color: C.dim }),
                 relevantTasks.filter(t => t.done).map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday })))),
-            relevantTasks.length === 0 && !overdueTasks.length && (React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
-                React.createElement("div", { style: { fontSize: 36, marginBottom: 12 } }, "[ ]"),
-                React.createElement("div", { style: { fontSize: 12, fontWeight: 700, letterSpacing: 0.4 } }, "No tasks yet"))),
+            relevantTasks.length === 0 && !overdueTasks.length && !showTaskForm && React.createElement(EmptyState, { title: activeTaskCategory ? `No tasks in ${activeTaskCategory.name} yet.` : "No tasks yet.", description: "Add the next thing while it is on your mind.", actionLabel: "Add Task", onAction: () => openAddTask(activeTaskCategoryId || ""), icon: "✓" }),
             showTaskForm ? (React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, marginTop: 10 }) },
                 React.createElement("input", { autoFocus: true, placeholder: "What needs to get done?", value: taskDraft.text, onChange: e => setTaskDraft(d => ({ ...d, text: e.target.value })), onKeyDown: e => e.key === "Enter" && saveTask(), style: { ...inp, marginBottom: 8 } }),
                 React.createElement("textarea", { placeholder: "Description (optional)", value: taskDraft.description, onChange: e => setTaskDraft(d => ({ ...d, description: e.target.value })), rows: 2, style: { ...inp, resize: "none", marginBottom: 8 } }),
@@ -2742,6 +2916,17 @@ function App() {
         if (tab === "meds")
             return !showMedForm;
         return true;
+    }
+    function renderBackupHealthPanel() {
+        const imageCount = notes.reduce((total, n) => total + getImages(n).length, 0) + tasks.reduce((total, t) => total + getImages(t).length, 0) + appts.reduce((total, a) => total + getImages(a).length, 0);
+        return React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 15, marginBottom: 10 }) },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 } },
+                React.createElement("div", { style: { fontSize: 14, color: C.text, fontWeight: 780 } }, "Backup & Storage"),
+                React.createElement("div", { style: { color: backupHealth.color, fontSize: 11, fontWeight: 760, textAlign: "right" } }, backupHealth.label)),
+            React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.55 } }, `Last backup export: ${formatBackupExportTime(lastBackupExportAt)}`),
+            React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.55 } }, `Estimated Planner data: ${formatPlannerDataSize(backupDataBytes)}${imageCount ? ` · ${imageCount} stored image${imageCount === 1 ? "" : "s"}` : ""}`),
+            React.createElement("div", { style: { color: C.dim, fontSize: 10, lineHeight: 1.45, marginTop: 6 } }, "Exports stay on this device until you save the downloaded file somewhere safe."),
+            React.createElement("button", { onClick: exportBackup, style: { width: "100%", minHeight: 42, marginTop: 12, padding: "10px 12px", borderRadius: 12, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontFamily: "inherit", fontWeight: 850, fontSize: 12 } }, "Export Backup"));
     }
     function renderTopLevelBackButton() {
         if (!shouldShowMainBack())
@@ -2874,9 +3059,7 @@ function App() {
                         React.createElement("div", { style: { color: folder ? (folder.color || C.amber) : C.accent, fontSize: 30, fontWeight: 820, lineHeight: 1.05, letterSpacing: -0.7 } }, folder ? folder.name : "All Notes"),
                         React.createElement("div", { style: { color: C.muted, fontSize: 12, marginTop: 5 } }, pageNotes.length, " note", pageNotes.length === 1 ? "" : "s"))),
                 pageNotes.map(n => renderNoteCard(n, inAll)),
-                pageNotes.length === 0 && React.createElement("div", { style: { textAlign: "center", padding: "46px 0", color: C.muted } },
-                    React.createElement("div", { style: { fontSize: 30, marginBottom: 8 } }, "≡"),
-                    React.createElement("div", { style: { fontSize: 13, fontWeight: 720 } }, folder ? `No notes in ${folder.name}` : "No notes yet")));
+                pageNotes.length === 0 && React.createElement(EmptyState, { title: folder ? "No notes in this folder yet." : "No notes yet. Capture an idea before it disappears.", actionLabel: "New Note", onAction: () => openAddNote(selFolderId || generalFolderId()), icon: "≡" }));
         }
         return React.createElement("div", null,
             React.createElement("div", { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 14 } },
@@ -2890,10 +3073,10 @@ function App() {
     }
 
     const tabContent = (React.createElement(React.Fragment, null,
+        renderStorageSaveWarning(),
+        renderUndoToast(),
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
-            searchResults.tasks.length === 0 && searchResults.appts.length === 0 && searchResults.notes.length === 0 && (React.createElement("div", { style: { textAlign: "center", padding: "40px 0", color: C.muted } },
-                React.createElement("div", { style: { fontSize: 24, marginBottom: 8 } }, "\u2205"),
-                React.createElement("div", { style: { fontSize: 11, fontWeight: 700, letterSpacing: 0.4 } }, "No results"))),
+            searchResults.tasks.length === 0 && searchResults.appts.length === 0 && searchResults.notes.length === 0 && React.createElement(EmptyState, { title: `No results for ‘${searchQuery.trim()}’.`, icon: "⌕" }),
             searchResults.tasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
                 React.createElement(SectionHeader, { icon: "\u22A1", label: "TASKS", color: C.accent }),
                 searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday })))),
@@ -2936,8 +3119,9 @@ function App() {
                             React.createElement("span", { style: { color: ch.operation === "delete" ? C.red : C.amber } }, prettyLabel(ch.operation || "upsert")),
                             React.createElement("span", null, prettyLabel(ch.reason || "changed"))));
             })
-                : React.createElement("div", { style: cardSurface({ borderRadius: 16, padding: 16, color: C.muted, fontSize: 12, lineHeight: 1.55, marginBottom: 14 }) }, "No pending Apple changes."),
+                : React.createElement(EmptyState, { title: "Everything is up to date.", description: "No pending Apple changes.", icon: "✓" }),
             React.createElement(SectionHeader, { icon: "▣", label: "BACKUP", color: C.green }),
+            renderBackupHealthPanel(),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16 }) },
                 React.createElement("input", { ref: importRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: e => { var _a; const f = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0]; if (f)
                             importBackupFile(f); if (e.target)
@@ -2985,7 +3169,7 @@ function App() {
                 !selDay && (React.createElement("div", { style: { marginTop: 18 } },
                     React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 10 } }, "// UPCOMING"),
                     appts.filter(a => a.date && new Date(a.date + "T12:00:00") >= new Date(today.toDateString())).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 5).map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })),
-                    appts.length === 0 && React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "12px 0" } }, "No appointments added."))))),
+                    appts.length === 0 && React.createElement(EmptyState, { title: "Nothing scheduled for this day.", actionLabel: "Add Event", onAction: openAddAppt, icon: "□" }))))),
             calView === "week" && (React.createElement(React.Fragment, null,
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 } },
                     React.createElement("button", { onClick: () => { setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate() - 7); setSelWeekDay(n); return n; }); }, style: { width: 36, height: 36, borderRadius: 10, border: `1px solid ${C.border}`, background: C.bg2, cursor: "pointer", fontSize: 16, color: C.text } }, "\u2039"),
@@ -3098,7 +3282,7 @@ function App() {
                 null),
             showMedForm && React.createElement(MedicationForm, { draft: medDraft, setDraft: setMedDraft, onSave: saveMed, onCancel: () => { setShowMedForm(false); setEditingMedId(null); }, editing: editingMedId !== null }),
             meds.length ? meds.map(m => React.createElement(MedicationCard, { key: m.id, med: m, medLogs: medLogs, onToggleDose: toggleMedDose, onEdit: openEditMed, onDelete: deleteMed }))
-                : React.createElement("div", { style: { fontSize: 11, color: C.muted, padding: "14px 0" } }, "No medications added yet."))),
+                : React.createElement(EmptyState, { title: "No medications added.", actionLabel: "Add Medication", onAction: openAddMed, icon: "+" }))),
         !searchOpen && tab === "notes" && renderNotesTabContent()));
     // ── Focus banner (shared) ───────────────────────────────────────────────────
     const compactFocus = false;
