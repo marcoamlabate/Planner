@@ -132,7 +132,9 @@ function EmptyState({ title, description, actionLabel, onAction, icon = "" }) {
 }
 function UndoToast({ record, onUndo, onDismiss }) {
     if (!record) return null;
-    return React.createElement("div", { style: { position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(env(safe-area-inset-bottom, 0px) + 18px)", zIndex: 900, width: "min(calc(100vw - 28px), 480px)", pointerEvents: "none" } },
+    // This lives at the app-shell level (outside individual page scrollers) so it
+    // remains visible in Tasks/category pages and stays clear of the floating + button.
+    return React.createElement("div", { style: { position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(env(safe-area-inset-bottom, 0px) + 94px)", zIndex: 950, width: "min(calc(100vw - 28px), 480px)", pointerEvents: "none" } },
         React.createElement("div", { style: { ...cardSurface({ borderRadius: 16, padding: "10px 10px 10px 14px", background: "rgba(17,24,39,.96)", boxShadow: "0 12px 30px rgba(0,0,0,.30)" }), display: "flex", alignItems: "center", gap: 10, pointerEvents: "auto" } },
             React.createElement("div", { style: { color: C.text, fontSize: 13, fontWeight: 700, flex: 1, minWidth: 0 } }, record.label),
             React.createElement("button", { onClick: onUndo, style: { minHeight: 38, padding: "8px 12px", borderRadius: 11, border: "none", background: C.accent + "1E", color: C.accent, cursor: "pointer", fontFamily: "inherit", fontWeight: 850, fontSize: 12 } }, "UNDO"),
@@ -356,7 +358,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v68";
+const APP_VERSION = "v68.1";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -1333,6 +1335,7 @@ function App() {
     const [editingApptId, setEditingApptId] = useState(null);
     const emptyAppt = () => { const cat = eventCategories[0] || DEFAULT_EVENT_CATEGORIES[0]; return ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertEnabled: false, alertDate: "", alertTime: "", locationText: "", categoryId: cat.id, categoryText: capitalizeLabel(cat.name), color: cat.color || C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" }); };
     const [apptDraft, setApptDraft] = useState(emptyAppt);
+    const [apptEndDateManuallySet, setApptEndDateManuallySet] = useState(false);
     const [apptAlertOpen, setApptAlertOpen] = useState(false);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
     const [folders, setFolders] = useLocalState("adhd3_folders", DEFAULT_FOLDERS);
@@ -1839,6 +1842,7 @@ function App() {
             draft.endDate = dateToLocalStr(selected);
         }
         setApptDraft(draft);
+        setApptEndDateManuallySet(false);
         setApptAlertOpen(false);
         setSelectedApptId(null);
         setEditingApptId(null);
@@ -1848,6 +1852,7 @@ function App() {
         var _a, _b, _c, _d, _e;
         setApptDraft({ title: a.title, date: a.date, endDate: (_d = a.endDate) !== null && _d !== void 0 ? _d : (a.date || ""), time: a.time, endTime: a.endTime || "", allDay: !!a.allDay || (!a.time && !a.endTime), alertEnabled: !!a.alertEnabled, alertDate: a.alertDate || "", alertTime: (_c = a.alertTime) !== null && _c !== void 0 ? _c : "", locationText: a.locationText || "", categoryId: a.categoryId || "personal", categoryText: a.categoryText || "", color: a.color, description: a.description, imageUrl: getImages(a)[0] || "", imageUrls: getImages(a), recurrence: (_a = a.recurrence) !== null && _a !== void 0 ? _a : "none" });
         setApptAlertOpen(!!(a.alertEnabled || a.alertDate || a.alertTime));
+        setApptEndDateManuallySet(true);
         setSelectedApptId(null);
         setEditingApptId(a.id);
         setShowApptForm(true);
@@ -3074,7 +3079,6 @@ function App() {
 
     const tabContent = (React.createElement(React.Fragment, null,
         renderStorageSaveWarning(),
-        renderUndoToast(),
         searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
             searchResults.tasks.length === 0 && searchResults.appts.length === 0 && searchResults.notes.length === 0 && React.createElement(EmptyState, { title: `No results for ‘${searchQuery.trim()}’.`, icon: "⌕" }),
             searchResults.tasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
@@ -3238,10 +3242,10 @@ function App() {
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 } },
                     React.createElement("div", { style: { minWidth: 0 } },
                         React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "Starts"),
-                        React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => setApptDraft(d => ({ ...d, date: e.target.value, endDate: d.endDate || e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } })),
+                        React.createElement("input", { type: "date", value: apptDraft.date, onChange: e => { const nextDate = e.target.value; setApptDraft(d => ({ ...d, date: nextDate, endDate: apptEndDateManuallySet ? (d.endDate || nextDate) : nextDate })); }, style: { ...inp, width: "100%", minWidth: 0 } })),
                     React.createElement("div", { style: { minWidth: 0 } },
                         React.createElement("div", { style: { fontSize: 8, fontWeight: 700, letterSpacing: 0.4, color: C.muted, marginBottom: 4 } }, "ENDS"),
-                        React.createElement("input", { type: "date", value: apptDraft.endDate || apptDraft.date || "", onChange: e => setApptDraft(d => ({ ...d, endDate: e.target.value })), style: { ...inp, width: "100%", minWidth: 0 } }))),
+                        React.createElement("input", { type: "date", value: apptDraft.endDate || apptDraft.date || "", onChange: e => { setApptEndDateManuallySet(true); setApptDraft(d => ({ ...d, endDate: e.target.value })); }, style: { ...inp, width: "100%", minWidth: 0 } }))),
                 React.createElement("button", { onClick: () => setApptDraft(d => ({ ...d, allDay: !d.allDay, time: !d.allDay ? "" : d.time, endTime: !d.allDay ? "" : d.endTime })), style: { width: "100%", padding: 10, borderRadius: 10, border: apptDraft.allDay ? `1px solid ${C.accent}` : `1px solid ${C.border}`, background: apptDraft.allDay ? C.accent + "22" : C.bg3, color: apptDraft.allDay ? C.accent : C.muted, cursor: "pointer", fontWeight: 800, fontSize: 10, fontFamily: "inherit", letterSpacing: 0.2, marginBottom: 8 } }, apptDraft.allDay ? "All-day: Yes" : "All-day: No"),
                 React.createElement("div", { style: { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8, width: "100%", overflow: "hidden", opacity: apptDraft.allDay ? 0.35 : 1 } },
                     React.createElement("div", { style: { minWidth: 0, width: "100%" } },
@@ -3316,6 +3320,7 @@ function App() {
             React.createElement("div", { style: { height: "calc(100dvh - 58px)", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "24px 24px 96px", boxSizing: "border-box" } },
                 React.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, content)),
             tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 30, width: 56, height: 56, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 25, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+            renderUndoToast(),
             lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
                 React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: 18, right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "×"),
                 React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
@@ -3344,6 +3349,7 @@ function App() {
             React.createElement("input", { ref: searchRef, "data-no-swipe-back": "true", placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: tab === "today" ? "20px 14px 34px" : "14px 14px 106px" } }, phoneContent),
         tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 24, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+        renderUndoToast(),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
             React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "×"),
             React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
