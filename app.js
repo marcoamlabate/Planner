@@ -45,6 +45,8 @@ function ActionIcon({ name, size = 23 }) {
         return React.createElement("svg", common, React.createElement("path", { d: "M4 7h16" }), React.createElement("path", { d: "M10 11v6" }), React.createElement("path", { d: "M14 11v6" }), React.createElement("path", { d: "M6 7l1 14h10l1-14" }), React.createElement("path", { d: "M9 7V4h6v3" }));
     if (name === "plus")
         return React.createElement("svg", common, React.createElement("path", { d: "M12 5v14" }), React.createElement("path", { d: "M5 12h14" }));
+    if (name === "pin")
+        return React.createElement("svg", common, React.createElement("path", { d: "m9 4 6 0 0 5 3 3-12 0 3-3z" }), React.createElement("path", { d: "M12 12v8" }));
     return React.createElement("span", null, name);
 }
 const ACCENT_COLORS = ["#00C2FF", "#1EDF80", "#F5A623", "#FF4444", "#A78BFA", "#F97316", "#06B6D4", "#84CC16"];
@@ -132,8 +134,7 @@ function EmptyState({ title, description, actionLabel, onAction, icon = "" }) {
 }
 function UndoToast({ record, onUndo, onDismiss }) {
     if (!record) return null;
-    // This lives at the app-shell level (outside individual page scrollers) so it
-    // remains visible in Tasks/category pages and stays clear of the floating + button.
+    // App-shell toast: always above the floating action button and safe-area.
     return React.createElement("div", { style: { position: "fixed", left: "50%", transform: "translateX(-50%)", bottom: "calc(env(safe-area-inset-bottom, 0px) + 94px)", zIndex: 950, width: "min(calc(100vw - 28px), 480px)", pointerEvents: "none" } },
         React.createElement("div", { style: { ...cardSurface({ borderRadius: 16, padding: "10px 10px 10px 14px", background: "rgba(17,24,39,.96)", boxShadow: "0 12px 30px rgba(0,0,0,.30)" }), display: "flex", alignItems: "center", gap: 10, pointerEvents: "auto" } },
             React.createElement("div", { style: { color: C.text, fontSize: 13, fontWeight: 700, flex: 1, minWidth: 0 } }, record.label),
@@ -358,7 +359,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v68.1";
+const APP_VERSION = "v69";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -818,6 +819,49 @@ function renderLinkedText(text, style = {}, emptyText = "") {
         : part.text));
 }
 
+function searchTextWithoutMarkers(value) {
+    return String(value || "").replace(/\[\[image:[^\]]+\]\]/g, "[Image]").replace(/\s+/g, " ").trim();
+}
+function buildSearchSnippet(body, query, maxLength = 138) {
+    const clean = searchTextWithoutMarkers(body);
+    if (!clean) return "";
+    const q = String(query || "").trim().toLowerCase();
+    const index = q ? clean.toLowerCase().indexOf(q) : -1;
+    if (index < 0) return clean.length > maxLength ? clean.slice(0, maxLength - 1).trimEnd() + "…" : clean;
+    const before = Math.max(0, index - 54);
+    const after = Math.min(clean.length, index + q.length + 78);
+    return `${before ? "…" : ""}${clean.slice(before, after).trim()}${after < clean.length ? "…" : ""}`;
+}
+function renderSearchHighlightedText(value, query) {
+    const text = String(value || "");
+    const q = String(query || "").trim();
+    if (!q) return text;
+    const lower = text.toLowerCase();
+    const needle = q.toLowerCase();
+    const parts = [];
+    let cursor = 0;
+    let index = lower.indexOf(needle, cursor);
+    while (index >= 0) {
+        if (index > cursor) parts.push(text.slice(cursor, index));
+        parts.push(React.createElement("mark", { key: `${index}-${parts.length}`, style: { color: "inherit", background: C.accent + "35", borderRadius: 4, padding: "0 2px" } }, text.slice(index, index + needle.length)));
+        cursor = index + needle.length;
+        index = lower.indexOf(needle, cursor);
+    }
+    if (cursor < text.length) parts.push(text.slice(cursor));
+    return parts.length ? parts : text;
+}
+function SearchResultCard({ type, title, snippet, meta, color, query, onClick }) {
+    return React.createElement("button", { onClick, style: cardSurface({ width: "100%", padding: "13px 14px", borderRadius: 16, marginBottom: 8, cursor: "pointer", textAlign: "left", fontFamily: "inherit", borderLeft: `3px solid ${color || C.accent}` }) },
+        React.createElement("div", { style: { display: "flex", alignItems: "flex-start", gap: 10 } },
+            React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap", marginBottom: 5 } },
+                    React.createElement("span", { style: { color: color || C.accent, background: (color || C.accent) + "1A", borderRadius: 999, padding: "3px 7px", fontSize: 9, fontWeight: 820, letterSpacing: 0.2 } }, type),
+                    meta ? React.createElement("span", { style: { color: C.muted, fontSize: 10, fontWeight: 650 } }, meta) : null),
+                React.createElement("div", { style: { color: C.text, fontSize: 14, fontWeight: 760, lineHeight: 1.3 } }, renderSearchHighlightedText(title, query)),
+                snippet ? React.createElement("div", { style: { color: C.muted, fontSize: 12, lineHeight: 1.5, marginTop: 5, overflowWrap: "anywhere" } }, renderSearchHighlightedText(snippet, query)) : null),
+            React.createElement("div", { style: { color: C.dim, fontSize: 19, lineHeight: 1, paddingTop: 5 } }, "›")));
+}
+
 function EventViewPanel({ a, onBack, onEdit, onExport }) {
     if (!a)
         return React.createElement("div", null);
@@ -1262,6 +1306,7 @@ function App() {
     useEffect(() => () => { if (undoTimerRef.current) clearTimeout(undoTimerRef.current); }, []);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [searchFilter, setSearchFilter] = useState("all");
     const searchRef = useRef(null);
     const [showCapture, setShowCapture] = useState(false);
     const importRef = useRef(null);
@@ -1335,6 +1380,7 @@ function App() {
     const [editingApptId, setEditingApptId] = useState(null);
     const emptyAppt = () => { const cat = eventCategories[0] || DEFAULT_EVENT_CATEGORIES[0]; return ({ title: "", date: "", endDate: "", time: "", endTime: "", allDay: true, alertEnabled: false, alertDate: "", alertTime: "", locationText: "", categoryId: cat.id, categoryText: capitalizeLabel(cat.name), color: cat.color || C.accent, description: "", imageUrl: "", imageUrls: [], recurrence: "none" }); };
     const [apptDraft, setApptDraft] = useState(emptyAppt);
+    // Changing the start date keeps the end date aligned until the user explicitly chooses another end date.
     const [apptEndDateManuallySet, setApptEndDateManuallySet] = useState(false);
     const [apptAlertOpen, setApptAlertOpen] = useState(false);
     const [notes, setNotes] = useLocalState("adhd3_notes", []);
@@ -1439,10 +1485,12 @@ function App() {
         if (!searchOpen) setSearchReturnSnapshot(getNavigationSnapshot());
         setSearchOpen(true);
         setSearchQuery("");
+        setSearchFilter("all");
     }
     function closeSearch() {
         setSearchOpen(false);
         setSearchQuery("");
+        setSearchFilter("all");
         restoreNavigationSnapshot(searchReturnSnapshot || { tab: "today" });
         setSearchReturnSnapshot(null);
     }
@@ -2153,7 +2201,7 @@ function App() {
     function openAddNote(folderId) {
         const now = Date.now();
         const targetFolder = folderId || (noteView === "list" && selFolderId ? selFolderId : generalFolderId());
-        const rec = { id: now, createdAt: now, updatedAt: now, title: "", type: "descriptive", content: "", topics: [], folderId: targetFolder, imageUrl: "", imageUrls: [], embeddedImages: {} };
+        const rec = { id: now, createdAt: now, updatedAt: now, pinned: false, title: "", type: "descriptive", content: "", topics: [], folderId: targetFolder, imageUrl: "", imageUrls: [], embeddedImages: {} };
         setNotes(p => [rec, ...p]);
         setNoteDraft(noteToDraft(rec));
         setActiveNoteTextBlockIndex(0);
@@ -2442,6 +2490,9 @@ function App() {
         setNoteView("list");
         setEditingNoteId(null);
     }
+    function setNotePinned(id, pinned) {
+        setNotes(p => p.map(n => n.id === id ? { ...n, pinned: !!pinned } : n));
+    }
     function deleteNote(id) {
         const existing = notes.find(n => n.id === id);
         if (!existing) return;
@@ -2472,7 +2523,7 @@ function App() {
     }
     function quickAddNote(title, folderId) {
         const now = Date.now();
-        setNotes(p => [...p, { id: now, createdAt: now, title, type: "descriptive", content: "", topics: [], folderId, imageUrl: "" }]);
+        setNotes(p => [...p, { id: now, createdAt: now, pinned: false, title, type: "descriptive", content: "", topics: [], folderId, imageUrl: "" }]);
     }
     function openAddMed() {
         setMedDraft(emptyMed());
@@ -3002,8 +3053,9 @@ function App() {
             return React.createElement("div", { key: n.id, style: cardSurface({ borderRadius: 16, padding: 12, marginBottom: 8, borderLeft: `3px solid ${folder.color || C.amber}` }) },
                 React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 } },
                     React.createElement("button", { onClick: e => { stop(e); setActiveNoteActionsId(null); }, style: actionButtonSurface(C.muted, C.bg3) }, React.createElement(ActionIcon, { name: "return" })),
-                    React.createElement("button", { onClick: e => { stop(e); shareNote(n); setActiveNoteActionsId(null); }, style: actionButtonSurface(C.accent, C.accent + "18") }, "↥"),
-                    React.createElement("button", { onClick: e => { stop(e); deleteNote(n.id); setActiveNoteActionsId(null); }, style: actionButtonSurface(C.red, C.red + "14") }, React.createElement(ActionIcon, { name: "delete" }))));
+                    React.createElement("button", { onClick: e => { stop(e); setNotePinned(n.id, !n.pinned); setActiveNoteActionsId(null); }, title: n.pinned ? "Unpin" : "Pin", style: actionButtonSurface(n.pinned ? C.amber : C.muted, n.pinned ? C.amber + "18" : C.bg3) }, React.createElement(ActionIcon, { name: "pin" })),
+                    React.createElement("button", { onClick: e => { stop(e); shareNote(n); setActiveNoteActionsId(null); }, title: "Share", style: actionButtonSurface(C.accent, C.accent + "18") }, "↥"),
+                    React.createElement("button", { onClick: e => { stop(e); deleteNote(n.id); setActiveNoteActionsId(null); }, title: "Delete", style: actionButtonSurface(C.red, C.red + "14") }, React.createElement(ActionIcon, { name: "delete" }))));
         }
         return React.createElement("div", { key: n.id, onClick: () => openViewNote(n, { view: "list", folderId: selFolderId }), style: cardSurface({ borderRadius: 16, padding: "13px 12px 13px 14px", marginBottom: 8, borderLeft: `3px solid ${folder.color || C.amber}`, cursor: "pointer" }) },
             React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
@@ -3063,7 +3115,12 @@ function App() {
                     React.createElement("div", null,
                         React.createElement("div", { style: { color: folder ? (folder.color || C.amber) : C.accent, fontSize: 30, fontWeight: 820, lineHeight: 1.05, letterSpacing: -0.7 } }, folder ? folder.name : "All Notes"),
                         React.createElement("div", { style: { color: C.muted, fontSize: 12, marginTop: 5 } }, pageNotes.length, " note", pageNotes.length === 1 ? "" : "s"))),
-                pageNotes.map(n => renderNoteCard(n, inAll)),
+                pageNotes.filter(n => !!n.pinned).length > 0 && React.createElement("div", { style: { marginBottom: 14 } },
+                    React.createElement(SectionHeader, { icon: "⌁", label: "PINNED", color: C.amber }),
+                    pageNotes.filter(n => !!n.pinned).map(n => renderNoteCard(n, inAll))),
+                pageNotes.filter(n => !n.pinned).length > 0 && React.createElement("div", null,
+                    React.createElement(SectionHeader, { icon: "◷", label: "RECENT", color: C.muted }),
+                    pageNotes.filter(n => !n.pinned).map(n => renderNoteCard(n, inAll))),
                 pageNotes.length === 0 && React.createElement(EmptyState, { title: folder ? "No notes in this folder yet." : "No notes yet. Capture an idea before it disappears.", actionLabel: "New Note", onAction: () => openAddNote(selFolderId || generalFolderId()), icon: "≡" }));
         }
         return React.createElement("div", null,
@@ -3077,26 +3134,73 @@ function App() {
             folders.map(f => renderNotesOverviewRow({ title: f.name, count: notes.filter(n => n.folderId === f.id).length, color: f.color || C.amber, icon: "□", onClick: () => openNotesList(f.id) })));
     }
 
+    function openSearchTaskResult(task) {
+        setTab("tasks");
+        setSearchOpen(false);
+        setSearchQuery("");
+        setSearchFilter("all");
+        openTaskPage("all");
+        openEditTask(task);
+    }
+    function openSearchEventResult(appt) {
+        setTab("calendar");
+        setSearchOpen(false);
+        setSearchQuery("");
+        setSearchFilter("all");
+        openViewAppt(appt);
+    }
+    function openSearchNoteResult(note) {
+        setTab("notes");
+        setSearchOpen(false);
+        setSearchQuery("");
+        setSearchFilter("all");
+        openViewNote(note, { view: "list", folderId: note.folderId || null });
+    }
+    function renderSearchResults() {
+        if (!searchOpen || !searchQuery.trim() || !searchResults) return null;
+        const groups = {
+            tasks: searchResults.tasks || [],
+            events: searchResults.appts || [],
+            notes: searchResults.notes || []
+        };
+        const filterOptions = [["all", "All"], ["tasks", "Tasks"], ["events", "Events"], ["notes", "Notes"]];
+        const visibleTasks = searchFilter === "all" || searchFilter === "tasks" ? groups.tasks : [];
+        const visibleEvents = searchFilter === "all" || searchFilter === "events" ? groups.events : [];
+        const visibleNotes = searchFilter === "all" || searchFilter === "notes" ? groups.notes : [];
+        const count = visibleTasks.length + visibleEvents.length + visibleNotes.length;
+        return React.createElement("div", null,
+            React.createElement("div", { style: controlSurface({ display: "flex", gap: 5, padding: 4, borderRadius: 15, marginBottom: 14, overflowX: "auto" }) },
+                filterOptions.map(([value, label]) => React.createElement("button", { key: value, onClick: () => setSearchFilter(value), style: { minHeight: 34, padding: "7px 11px", borderRadius: 11, border: "none", background: searchFilter === value ? C.accent + "20" : "transparent", color: searchFilter === value ? C.accent : C.muted, cursor: "pointer", fontFamily: "inherit", fontWeight: 760, fontSize: 11, whiteSpace: "nowrap" } }, label))),
+            count === 0 && React.createElement(EmptyState, { title: `No results for ‘${searchQuery.trim()}’.`, icon: "⌕" }),
+            visibleTasks.length > 0 && React.createElement("div", { style: { marginBottom: 16 } },
+                searchFilter === "all" && React.createElement(SectionHeader, { icon: "⊡", label: "TASKS", color: C.accent }),
+                visibleTasks.map(t => {
+                    const category = categories.find(c => c.id === t.categoryId);
+                    const body = t.description || "";
+                    const snippet = buildSearchSnippet(body, searchQuery);
+                    const meta = [category && category.name, displayTaskTag(t.taskTag), t.dueDate ? formatBrDate(t.dueDate) : ""].filter(Boolean).join(" · ");
+                    return React.createElement(SearchResultCard, { key: t.id, type: "Task", title: t.text || "Untitled task", snippet, meta, color: category ? category.color : C.accent, query: searchQuery, onClick: () => openSearchTaskResult(t) });
+                })),
+            visibleEvents.length > 0 && React.createElement("div", { style: { marginBottom: 16 } },
+                searchFilter === "all" && React.createElement(SectionHeader, { icon: "□", label: "EVENTS", color: C.green }),
+                visibleEvents.map(a => {
+                    const snippet = buildSearchSnippet(a.description || "", searchQuery);
+                    const meta = [a.date ? formatBrDate(a.date) : "", a.time || ""].filter(Boolean).join(" · ");
+                    return React.createElement(SearchResultCard, { key: a.id, type: "Event", title: a.title || "Untitled event", snippet, meta, color: a.color || C.green, query: searchQuery, onClick: () => openSearchEventResult(a) });
+                })),
+            visibleNotes.length > 0 && React.createElement("div", null,
+                searchFilter === "all" && React.createElement(SectionHeader, { icon: "≡", label: "NOTES", color: C.amber }),
+                visibleNotes.map(n => {
+                    const folder = folders.find(f => f.id === n.folderId);
+                    const body = (n.type || "descriptive") === "topic" ? (n.topics || []).join("\n") : n.content || "";
+                    const snippet = buildSearchSnippet(body, searchQuery);
+                    return React.createElement(SearchResultCard, { key: n.id, type: "Note", title: normalizeNoteTitle(n.title), snippet, meta: (folder && folder.name) || "General", color: (folder && folder.color) || C.amber, query: searchQuery, onClick: () => openSearchNoteResult(n) });
+                })));
+    }
+
     const tabContent = (React.createElement(React.Fragment, null,
         renderStorageSaveWarning(),
-        searchOpen && searchQuery.trim() && searchResults && (React.createElement("div", null,
-            searchResults.tasks.length === 0 && searchResults.appts.length === 0 && searchResults.notes.length === 0 && React.createElement(EmptyState, { title: `No results for ‘${searchQuery.trim()}’.`, icon: "⌕" }),
-            searchResults.tasks.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
-                React.createElement(SectionHeader, { icon: "\u22A1", label: "TASKS", color: C.accent }),
-                searchResults.tasks.map(t => React.createElement(TaskCard, { key: t.id, task: t, categories: categories, onToggle: toggleTask, onDelete: deleteTask, onEdit: openEditTask, onToggleSubtask: toggleSubtask, onAddSubtask: addSubtask, onExport: exportTaskToApple, onCopyToToday: copyTaskToToday })))),
-            searchResults.appts.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
-                React.createElement(SectionHeader, { icon: "\uD83D\uDCC5", label: "APPOINTMENTS", color: C.green }),
-                searchResults.appts.map(a => React.createElement(ApptCard, { key: a.id, appt: a, onDelete: deleteAppt, onEdit: openEditAppt, onExport: exportEventToApple })))),
-            searchResults.notes.length > 0 && (React.createElement("div", { style: { marginBottom: 16 } },
-                React.createElement(SectionHeader, { icon: "\u2261", label: "NOTES", color: C.amber }),
-                searchResults.notes.map(n => {
-                    var _a, _b, _c;
-                    const folder = folders.find(f => f.id === n.folderId);
-                    return (React.createElement("div", { key: n.id, onClick: () => { setTab("notes"); setSearchOpen(false); setSearchQuery(""); openViewNote(n, { view: "list", folderId: n.folderId || null }); }, style: { background: C.bg2, borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `1px solid ${C.border}`, borderLeft: `2px solid ${(_a = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _a !== void 0 ? _a : C.amber}`, cursor: "pointer" } },
-                        React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: C.text } }, n.title),
-                        React.createElement("div", { style: { fontSize: 9, color: (_b = folder === null || folder === void 0 ? void 0 : folder.color) !== null && _b !== void 0 ? _b : C.muted, fontWeight: 700, letterSpacing: 0.2, marginTop: 3 } }, (_c = folder === null || folder === void 0 ? void 0 : folder.name) !== null && _c !== void 0 ? _c : "General"),
-                        n.content && React.createElement("div", { onClick: e => e.stopPropagation(), onPointerDown: e => e.stopPropagation(), onPointerUp: e => e.stopPropagation(), style: { fontSize: 11, color: C.muted, marginTop: 4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, renderLinkedText(n.content))));
-                }))))),
+        searchOpen && renderSearchResults(),
         !searchOpen && tab === "today" && renderMainPage(),
         !searchOpen && tab === "sync" && (React.createElement("div", null,
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16, border: `1px solid ${pendingAppleCount ? C.amber + "32" : UI.border}`, marginBottom: 14, boxShadow: "none" }) },
