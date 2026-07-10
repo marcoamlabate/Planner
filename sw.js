@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v69-search-pins-v68-1-hotfix';
+const CACHE_NAME = 'adhd-planner-v69-1-focus-main-only';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
