@@ -77,8 +77,25 @@
   <script src="./app.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(console.warn));
+      window.addEventListener('load', () => {
+        const announceUpdate = () => {
+          window.__plannerUpdateAvailable = true;
+          window.dispatchEvent(new Event('planner-update-available'));
+        };
+        navigator.serviceWorker.register('./sw.js').then(registration => {
+          if (registration.waiting) announceUpdate();
+          registration.addEventListener('updatefound', () => {
+            const installing = registration.installing;
+            if (!installing) return;
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) announceUpdate();
+            });
+          });
+          navigator.serviceWorker.addEventListener('controllerchange', announceUpdate);
+        }).catch(console.warn);
+      });
     }
   </script>
 </body>
 </html>
+
