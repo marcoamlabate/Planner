@@ -1,4 +1,4 @@
-const CACHE_NAME = 'adhd-planner-v70-daily-dashboard';
+const CACHE_NAME = 'adhd-planner-v70-1-reliability';
 const APP_SHELL = [
   './', './index.html', './app.js', './manifest.webmanifest', './icon.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',
@@ -17,3 +17,4 @@ self.addEventListener('fetch', event => {
     return response;
   }).catch(() => caches.match('./index.html'))));
 });
+
