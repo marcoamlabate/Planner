@@ -359,7 +359,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v69";
+const APP_VERSION = "v69.1";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -3012,6 +3012,7 @@ function App() {
                     React.createElement("div", { style: { color: C.muted, fontSize: 13, fontWeight: 700, marginBottom: 5 } }, "Main"),
                     React.createElement("div", { style: { color: C.text, fontSize: 34, fontWeight: 820, letterSpacing: -1.1, lineHeight: 1.05 } }, today.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }))),
                 React.createElement("button", { onClick: () => { searchOpen ? closeSearch() : openSearch(); }, style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "🔍")),
+            React.createElement("div", { style: { marginBottom: 12 } }, renderFocusBanner()),
             React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 0 } },
                 renderMainNavCard({ keyName: "tasks", title: "Tasks", subtitle: "Lists & Today", count: taskOpenCount, icon: "✓", color: C.accent }),
                 renderMainNavCard({ keyName: "calendar", title: "Calendar", subtitle: calCount ? "Today" : "No events today", count: calCount, icon: "□", color: C.red }),
@@ -3393,8 +3394,9 @@ function App() {
                 : React.createElement(EmptyState, { title: "No medications added.", actionLabel: "Add Medication", onAction: openAddMed, icon: "+" }))),
         !searchOpen && tab === "notes" && renderNotesTabContent()));
     // ── Focus banner (shared) ───────────────────────────────────────────────────
-    const compactFocus = false;
-    const focusBanner = (React.createElement("div", { style: cardSurface({ border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}66` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 14 : 18, padding: compactFocus ? "8px 10px" : "13px 14px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }) , onClick: !editMot ? startEditMot : undefined },
+    function renderFocusBanner() {
+        const compactFocus = false;
+        return (React.createElement("div", { style: cardSurface({ border: `1px solid ${C.accent}22`, borderLeft: compactFocus ? `2px solid ${C.accent}66` : `3px solid ${C.accent}`, borderRadius: compactFocus ? 14 : 18, padding: compactFocus ? "8px 10px" : "13px 14px", cursor: "pointer", position: "relative", overflow: "hidden", boxShadow: compactFocus ? "none" : UI.glowBlue }) , onClick: !editMot ? startEditMot : undefined },
         editMot ? (React.createElement("div", null,
             React.createElement("textarea", { ref: motRef, value: motDraft, onChange: e => setMotDraft(e.target.value), onClick: e => e.stopPropagation(), rows: compactFocus ? 1 : 2, style: { ...inp, resize: "none", marginBottom: 8, border: `1px solid ${C.accent}44`, fontSize: 11 } }),
             React.createElement("div", { style: { display: "flex", gap: 5, marginBottom: 8 } }, ACCENT_COLORS.concat([C.text]).map(c => React.createElement("button", { key: c, onClick: e => { e.stopPropagation(); setFocusColor(c); }, style: { width: 20, height: 20, borderRadius: 6, background: c, border: "none", cursor: "pointer", outline: focusColor === c ? `2px solid white` : "1px solid transparent", outlineOffset: 1 } }))),
@@ -3402,6 +3404,7 @@ function App() {
             compactFocus && React.createElement("span", { style: { color: C.accent, fontSize: 11, fontWeight: 760, flexShrink: 0 } }, "Focus"),
             !compactFocus && React.createElement("div", { style: { fontSize: 11, fontWeight: 760, letterSpacing: 0.1, color: C.accent, marginBottom: 5 } }, "Focus"),
             React.createElement("div", { style: { color: focusColor, fontSize: compactFocus ? 11 : 13, fontWeight: 600, lineHeight: 1.45, whiteSpace: compactFocus ? "nowrap" : "normal", overflow: "hidden", textOverflow: "ellipsis" } }, motivation)))));
+    }
     // ── DESKTOP / TABLET LAYOUT (≥640px) ───────────────────────────────────────
     if (isWide) {
         const content = searchOpen
