@@ -359,7 +359,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v69.3";
+const APP_VERSION = "v70";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -1244,7 +1244,7 @@ function MedicationForm({ draft, setDraft, onSave, onCancel, editing }) {
             React.createElement("button", { onClick: onSave, style: { flex: 2, padding: 10, borderRadius: 10, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontWeight: 900, fontFamily: "inherit", fontSize: 11, letterSpacing: 0.2 } }, editing ? "Save Medication" : "Add Medication")));
 }
 
-function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixed }) {
+function QuickCapture({ categories, folders, onAddTask, onAddToday, onAddEvent, onAddNote, onClose, fixed }) {
     var _a, _b, _c, _d;
     const [text, setText] = useState("");
     const [type, setType] = useState("task");
@@ -1257,6 +1257,10 @@ function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixe
             return;
         if (type === "task")
             onAddTask(text.trim(), catId);
+        else if (type === "today")
+            onAddToday(text.trim());
+        else if (type === "event")
+            onAddEvent(text.trim());
         else
             onAddNote(text.trim(), folderId);
         onClose();
@@ -1265,13 +1269,14 @@ function QuickCapture({ categories, folders, onAddTask, onAddNote, onClose, fixe
         React.createElement("div", { style: cardSurface({ width: "100%", borderRadius: "28px 28px 0 0", padding: "22px 16px 38px", border: `1px solid ${UI.border}` }), onClick: e => e.stopPropagation() },
             React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
                 React.createElement("div", { style: { fontSize: 9, fontWeight: 700, letterSpacing: 0.4, color: C.accent } }, "Quick Capture"),
-                React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", fontWeight: 700 } }, "\u00D7")),
-            React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 12, background: C.bg3, borderRadius: 10, padding: 3 } }, [["task", "Task"], ["note", "Note"]].map(([k, l]) => (React.createElement("button", { key: k, onClick: () => setType(k), style: { flex: 1, padding: "7px 0", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 0.3, fontFamily: "inherit", background: type === k ? C.accent + "20" : "transparent", color: type === k ? C.accent : C.muted } }, l)))),
-            React.createElement("input", { ref: ref, placeholder: type === "task" ? "What needs doing?" : "Note title...", value: text, onChange: e => setText(e.target.value), onKeyDown: e => e.key === "Enter" && save(), style: { ...inp, marginBottom: 10 } }),
+                React.createElement("button", { onClick: onClose, "aria-label": "Close quick capture", title: "Close", style: { width: 44, height: 44, background: "none", border: "none", color: C.muted, fontSize: 18, cursor: "pointer", fontWeight: 700 } }, "\u00D7")),
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 4, marginBottom: 12, background: C.bg3, borderRadius: 10, padding: 3 } }, [["task", "Task"], ["today", "Today"], ["event", "Event"], ["note", "Note"]].map(([k, l]) => (React.createElement("button", { key: k, onClick: () => setType(k), "aria-pressed": type === k, style: { minHeight: 38, padding: "7px 2px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 10, letterSpacing: 0.1, fontFamily: "inherit", background: type === k ? C.accent + "20" : "transparent", color: type === k ? C.accent : C.muted } }, l)))),
+            React.createElement("input", { ref: ref, placeholder: type === "task" ? "What needs doing?" : type === "today" ? "What do you want to do today?" : type === "event" ? "Event title..." : "Note title...", value: text, onChange: e => setText(e.target.value), onKeyDown: e => e.key === "Enter" && save(), style: { ...inp, marginBottom: 10 } }),
             React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" } }, type === "task"
                 ? categories.map(c => React.createElement(CatPill, { key: c.id, label: c.name.toUpperCase(), active: catId === c.id, color: c.color, onClick: () => setCatId(c.id) }))
-                : folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name, active: folderId === f.id, color: f.color, onClick: () => setFolderId(f.id) }))),
-            React.createElement("button", { onClick: save, style: { width: "100%", padding: 12, borderRadius: 12, border: "none", background: C.accent, color: C.text, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, "Capture"))));
+                : type === "note" ? folders.map(f => React.createElement(CatPill, { key: f.id, label: f.name, active: folderId === f.id, color: f.color, onClick: () => setFolderId(f.id) })) : null),
+            type === "event" && React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.4, marginBottom: 14 } }, "You can set the date and time on the next screen."),
+            React.createElement("button", { onClick: save, style: { width: "100%", minHeight: 48, padding: 12, borderRadius: 12, border: "none", background: C.accent, color: C.text, fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.2, boxShadow: "none" } }, "Capture"))));
 }
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App() {
@@ -1279,6 +1284,7 @@ function App() {
     const windowWidth = useWindowWidth();
     const isWide = windowWidth >= 640;
     const [tab, setTab] = useState("today");
+    const [showQuickCapture, setShowQuickCapture] = useState(false);
     const [storageSaveFailures, setStorageSaveFailures] = useState({});
     const [undoRecord, setUndoRecord] = useState(null);
     const undoTimerRef = useRef(null);
@@ -1894,6 +1900,19 @@ function App() {
         setApptAlertOpen(false);
         setSelectedApptId(null);
         setEditingApptId(null);
+        setShowApptForm(true);
+    }
+    function openQuickCaptureEvent(title) {
+        const draft = emptyAppt();
+        draft.title = title;
+        draft.date = todayStr();
+        draft.endDate = todayStr();
+        setApptDraft(draft);
+        setApptEndDateManuallySet(false);
+        setApptAlertOpen(false);
+        setSelectedApptId(null);
+        setEditingApptId(null);
+        setTab("calendar");
         setShowApptForm(true);
     }
     function openEditAppt(a) {
@@ -2733,8 +2752,11 @@ function App() {
     const dashboardOverdueTasks = sortDashboardTasks(tasks.filter(t => !t.done && t.dueDate && t.dueDate < todayStr()));
     const dashboardTodayTasks = sortDashboardTasks(tasks.filter(t => !t.done && t.dueDate === todayStr()));
     const dashboardLaterTasks = sortDashboardTasks(tasks.filter(t => !t.done && (!t.dueDate || t.dueDate > todayStr())));
-    const dashboardNowTask = dashboardOverdueTasks[0] || dashboardTodayTasks[0] || dashboardLaterTasks[0] || null;
+    const dashboardNowTask = dashboardOverdueTasks[0] || dashboardTodayTasks[0] || null;
     const dashboardNextTasks = [...dashboardOverdueTasks, ...dashboardTodayTasks, ...dashboardLaterTasks].filter(t => !dashboardNowTask || t.id !== dashboardNowTask.id).slice(0, 2);
+    const dashboardTodayScratchTasks = getTodayList(todayStr()).filter(t => !t.done);
+    const dashboardNextEvent = todayAppts.find(a => !a.time || (timeToMinutes(a.time) ?? 0) >= new Date().getHours() * 60 + new Date().getMinutes()) || todayAppts[0] || null;
+    const dashboardNextUp = dashboardNowTask ? { type: "task", item: dashboardNowTask } : dashboardNextEvent ? { type: "event", item: dashboardNextEvent } : dashboardLaterTasks[0] ? { type: "task", item: dashboardLaterTasks[0] } : null;
     function openTaskPage(page) {
         setTaskSubTab(page);
         setTaskOverviewActionOpen(false);
@@ -3003,6 +3025,37 @@ function App() {
                 React.createElement("div", { style: { color: C.text, fontSize: 22, fontWeight: 780, letterSpacing: -0.5, lineHeight: 1.05 } }, title),
                 subtitle ? React.createElement("div", { style: { color: C.muted, fontSize: 11, marginTop: 5, fontWeight: 620, lineHeight: 1.3 } }, subtitle) : null));
     }
+    function renderDailyCommandCenter() {
+        const nextUp = dashboardNextUp;
+        const nextIsTask = nextUp && nextUp.type === "task";
+        const nextItem = nextUp && nextUp.item;
+        const nextLabel = !nextUp ? "Nothing is waiting right now" : nextIsTask ? (nextItem.dueDate && nextItem.dueDate < todayStr() ? "Overdue task" : nextItem.dueDate === todayStr() ? "Task for today" : "Next task") : "Today’s next event";
+        const nextMeta = !nextUp ? "Use Quick Capture to save the next thing on your mind." : nextIsTask ? [nextItem.dueDate ? formatBrDate(nextItem.dueDate) : "No due date", nextItem.dueTime || ""].filter(Boolean).join(" · ") : [nextItem.allDay ? "All day" : nextItem.time || "No time set", nextItem.locationText || ""].filter(Boolean).join(" · ");
+        return React.createElement(React.Fragment, null,
+            React.createElement("button", { onClick: () => setShowQuickCapture(true), "aria-label": "Quick Capture", style: { width: "100%", minHeight: 48, borderRadius: 15, border: `1px solid ${C.accent}55`, background: C.accent + "18", color: C.text, cursor: "pointer", fontFamily: "inherit", fontWeight: 800, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 } },
+                React.createElement("span", { style: { fontSize: 20, lineHeight: 1 } }, "+"), "Quick Capture"),
+            React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 14, marginBottom: 12, borderLeft: `3px solid ${dashboardOverdueTasks.length ? C.red : C.accent}`, cursor: nextUp ? "pointer" : "default" }), onClick: nextUp ? () => nextIsTask ? openTaskForTodayDashboard(nextItem) : openEventForTodayDashboard(nextItem) : undefined },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 } },
+                    React.createElement("div", { style: { color: dashboardOverdueTasks.length ? C.red : C.accent, fontWeight: 850, fontSize: 11, letterSpacing: 0.3 } }, "NEXT UP"),
+                    nextUp && React.createElement("div", { style: { color: C.muted, fontSize: 11, fontWeight: 750 } }, nextIsTask ? "Open task" : "Open event")),
+                React.createElement("div", { style: { color: C.text, fontWeight: 800, fontSize: 16, lineHeight: 1.3, marginBottom: 4 } }, nextUp ? nextItem.text || nextItem.title : nextLabel),
+                React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.4 } }, nextUp ? `${nextLabel} · ${nextMeta}` : nextMeta)),
+            dashboardOverdueTasks.length > 0 && React.createElement("button", { onClick: () => { setTab("tasks"); openTaskPage("all"); }, style: { width: "100%", minHeight: 44, marginBottom: 12, borderRadius: 14, border: `1px solid ${C.red}55`, background: C.red + "14", color: C.text, cursor: "pointer", fontFamily: "inherit", fontWeight: 780, fontSize: 12, textAlign: "left", padding: "10px 12px" } },
+                React.createElement("span", { style: { color: C.red, marginRight: 8 } }, "Attention:"), dashboardOverdueTasks.length, dashboardOverdueTasks.length === 1 ? " overdue task needs a decision." : " overdue tasks need a decision."),
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 14 } },
+                React.createElement("button", { onClick: () => { setTab("tasks"); openTaskPage("today"); }, style: { ...cardSurface({ minHeight: 86, padding: 10, borderRadius: 15, cursor: "pointer", textAlign: "left" }), fontFamily: "inherit" } },
+                    React.createElement("div", { style: { color: C.amber, fontSize: 10, fontWeight: 800, marginBottom: 8 } }, "TODAY"),
+                    React.createElement("div", { style: { color: C.text, fontSize: 20, fontWeight: 820, lineHeight: 1 } }, dashboardTodayTasks.length + dashboardTodayScratchTasks.length),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 10, marginTop: 6, lineHeight: 1.2 } }, "tasks")),
+                React.createElement("button", { onClick: () => setTab("calendar"), style: { ...cardSurface({ minHeight: 86, padding: 10, borderRadius: 15, cursor: "pointer", textAlign: "left" }), fontFamily: "inherit" } },
+                    React.createElement("div", { style: { color: C.red, fontSize: 10, fontWeight: 800, marginBottom: 8 } }, "EVENTS"),
+                    React.createElement("div", { style: { color: C.text, fontSize: 20, fontWeight: 820, lineHeight: 1 } }, todayAppts.length),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 10, marginTop: 6, lineHeight: 1.2 } }, "today")),
+                React.createElement("button", { onClick: () => setTab("meds"), style: { ...cardSurface({ minHeight: 86, padding: 10, borderRadius: 15, cursor: "pointer", textAlign: "left" }), fontFamily: "inherit" } },
+                    React.createElement("div", { style: { color: C.green, fontSize: 10, fontWeight: 800, marginBottom: 8 } }, "MEDS"),
+                    React.createElement("div", { style: { color: C.text, fontSize: 20, fontWeight: 820, lineHeight: 1 } }, todayMedDoses.length ? `${medsTakenToday}/${todayMedDoses.length}` : "—"),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 10, marginTop: 6, lineHeight: 1.2 } }, "taken"))));
+    }
     function renderMainPage() {
         const calCount = todayAppts.length;
         const medCountText = todayMedDoses.length ? `${medsTakenToday}/${todayMedDoses.length}` : "0";
@@ -3013,6 +3066,7 @@ function App() {
                     React.createElement("div", { style: { color: C.text, fontSize: "clamp(28px, 8.5vw, 34px)", fontWeight: 820, letterSpacing: -1.1, lineHeight: 1.05 } }, today.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }))),
                 React.createElement("button", { onClick: () => { searchOpen ? closeSearch() : openSearch(); }, "aria-label": searchOpen ? "Close search" : "Search", title: searchOpen ? "Close search" : "Search", style: controlSurface({ width: 44, height: 44, borderRadius: 16, border: `1px solid ${searchOpen ? C.accent + "66" : UI.border}`, background: searchOpen ? C.accent + "22" : UI.controlBg, cursor: "pointer", color: searchOpen ? C.accent : C.muted, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }) }, "🔍")),
             React.createElement("div", { style: { marginBottom: 12 } }, renderFocusBanner()),
+            renderDailyCommandCenter(),
             React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12, marginBottom: 0 } },
                 renderMainNavCard({ keyName: "tasks", title: "Tasks", subtitle: "Lists & Today", count: taskOpenCount, icon: "✓", color: C.accent }),
                 renderMainNavCard({ keyName: "calendar", title: "Calendar", subtitle: calCount ? "Today" : "No events today", count: calCount, icon: "□", color: C.red }),
@@ -3426,6 +3480,7 @@ function App() {
                 React.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, content)),
             tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, "aria-label": tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", title: tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", style: { position: "absolute", bottom: 30, right: 30, width: 56, height: 56, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 25, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
             renderUndoToast(),
+            showQuickCapture && React.createElement(QuickCapture, { categories: categories, folders: folders, onAddTask: quickAddTask, onAddToday: title => addTodayTask(title, "", todayStr()), onAddEvent: openQuickCaptureEvent, onAddNote: quickAddNote, onClose: () => setShowQuickCapture(false), fixed: true }),
             lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
                 React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: 18, right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "×"),
                 React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
@@ -3455,6 +3510,7 @@ function App() {
         React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: tab === "today" ? "20px 14px 34px" : "14px 14px 106px" } }, phoneContent),
         tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, "aria-label": tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", title: tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 24, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
         renderUndoToast(),
+        showQuickCapture && React.createElement(QuickCapture, { categories: categories, folders: folders, onAddTask: quickAddTask, onAddToday: title => addTodayTask(title, "", todayStr()), onAddEvent: openQuickCaptureEvent, onAddNote: quickAddNote, onClose: () => setShowQuickCapture(false), fixed: true }),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
             React.createElement("button", { onClick: () => setLightboxImage(null), style: { position: "absolute", top: "calc(18px + env(safe-area-inset-top, 0px))", right: 18, width: 38, height: 38, borderRadius: 19, border: "none", background: C.bg2, color: C.text, fontSize: 22, fontWeight: 800, cursor: "pointer" } }, "×"),
             React.createElement("img", { src: lightboxImage, alt: "", onClick: e => e.stopPropagation(), style: { maxWidth: "100%", maxHeight: "86dvh", objectFit: "contain", borderRadius: 12 } }))));
