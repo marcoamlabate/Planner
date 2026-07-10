@@ -119,6 +119,29 @@ function getBackupHealth(lastExportAt) {
     if (days <= 21) return { label: "A fresh backup is recommended.", color: C.amber };
     return { label: "Backup export is overdue.", color: C.amber };
 }
+function getStorageSafety(bytes) {
+    const n = Number(bytes) || 0;
+    // Safari storage limits vary by device and can be lower than expected in a PWA.
+    // These are intentionally cautious thresholds based on the size of a full backup.
+    if (n >= 3.5 * 1024 * 1024)
+        return { level: "urgent", color: C.red, label: "Storage risk is high.", detail: "Planner data is large enough that another image or edit may fail to save. Export a backup and remove images you no longer need." };
+    if (n >= 2 * 1024 * 1024)
+        return { level: "warning", color: C.amber, label: "Planner data is getting large.", detail: "Images take the most space. Export a backup soon and keep an eye on storage before adding more images." };
+    return { level: "normal", color: C.green, label: "Planner data size looks manageable.", detail: "Browser storage limits still vary, so keep regular backups." };
+}
+function summarizeBackup(data) {
+    const list = value => Array.isArray(value) ? value : [];
+    const records = list(data.notes).concat(list(data.tasks), list(data.appts));
+    return {
+        tasks: list(data.tasks).length,
+        todayTasks: Object.values(data.todayTasksByDate || {}).reduce((total, value) => total + list(value).length, 0),
+        events: list(data.appts).length,
+        notes: list(data.notes).length,
+        meds: list(data.meds).length,
+        images: records.reduce((total, item) => total + getImages(item).length, 0),
+        exportedAt: data.exportedAt || ""
+    };
+}
 function formatBackupExportTime(value) {
     if (!value) return "Never";
     const d = new Date(value);
@@ -359,7 +382,7 @@ const DEFAULT_EVENT_CATEGORIES = [
     { id: "tests", name: "Tests", color: "#F5A623" },
 ];
 const DEFAULT_FOLDERS = [{ id: "general", name: "General", color: "#00C2FF" }];
-const APP_VERSION = "v70";
+const APP_VERSION = "v70.1";
 function offsetDateStr(days) {
     const d = new Date();
     d.setDate(d.getDate() + days);
@@ -1316,6 +1339,13 @@ function App() {
     const searchRef = useRef(null);
     const [showCapture, setShowCapture] = useState(false);
     const importRef = useRef(null);
+    const [backupPreview, setBackupPreview] = useState(null);
+    const [pwaUpdateAvailable, setPwaUpdateAvailable] = useState(() => typeof window !== "undefined" && !!window.__plannerUpdateAvailable);
+    useEffect(() => {
+        const showUpdate = () => setPwaUpdateAvailable(true);
+        window.addEventListener("planner-update-available", showUpdate);
+        return () => window.removeEventListener("planner-update-available", showUpdate);
+    }, []);
     const [reviewDraft, setReviewDraft] = useState({ done: "", move: "", tomorrow: "" });
     const [reviews, setReviews] = useLocalState("adhd3_reviews", []);
     const [lastBackupExportAt, setLastBackupExportAt] = useLocalState("adhd3_last_backup_export_at", "");
@@ -2593,6 +2623,19 @@ function App() {
         try {
             const text = await file.text();
             const data = JSON.parse(text);
+            if (!data || typeof data !== "object")
+                throw new Error("Invalid backup");
+            setBackupPreview({ name: file.name || "Planner backup", data, summary: summarizeBackup(data) });
+        }
+        catch {
+            alert("Could not read that backup file.");
+        }
+    }
+    function applyBackupImport() {
+        const data = backupPreview && backupPreview.data;
+        if (!data)
+            return;
+        try {
             if (data.motivation)
                 setMotivation(data.motivation);
             if (data.focusColor)
@@ -2629,10 +2672,11 @@ function App() {
                 setShowDoneTasks(data.showDoneTasks);
             else
                 setShowDoneTasks(false);
+            setBackupPreview(null);
             alert("Backup imported.");
         }
         catch {
-            alert("Could not import that backup file.");
+            alert("Could not apply that backup file.");
         }
     }
     function saveReview() {
@@ -2740,6 +2784,8 @@ function App() {
     const pendingAppleList = Object.values(pendingAppleChanges || {}).filter(Boolean).sort((a, b) => String(b.changedAt || "").localeCompare(String(a.changedAt || "")));
     const backupDataBytes = useMemo(() => estimatePlannerDataBytes(buildBackupData()), [motivation, focusColor, rawTasks, todayTasksByDate, categories, taskTags, eventCategories, rawAppts, notes, folders, reviews, meds, medLogs, pendingAppleChanges, showDoneTasks]);
     const backupHealth = getBackupHealth(lastBackupExportAt);
+    const storageSafety = getStorageSafety(backupDataBytes);
+    const backupNeedsAttention = !lastBackupExportAt || backupHealth.color === C.amber;
     const openTaskForTodayDashboard = task => { setTab("tasks"); openTaskPage("all"); openEditTask(task); };
     const openEventForTodayDashboard = appt => { setTab("calendar"); openEditAppt(appt); };
     const sortDashboardTasks = list => [...list].sort((a, b) => {
@@ -3003,8 +3049,45 @@ function App() {
                 React.createElement("div", { style: { color: backupHealth.color, fontSize: 11, fontWeight: 760, textAlign: "right" } }, backupHealth.label)),
             React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.55 } }, `Last backup export: ${formatBackupExportTime(lastBackupExportAt)}`),
             React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.55 } }, `Estimated Planner data: ${formatPlannerDataSize(backupDataBytes)}${imageCount ? ` · ${imageCount} stored image${imageCount === 1 ? "" : "s"}` : ""}`),
+            React.createElement("div", { style: { marginTop: 9, padding: "9px 10px", borderRadius: 11, border: `1px solid ${storageSafety.color}44`, background: storageSafety.color + "12" } },
+                React.createElement("div", { style: { color: storageSafety.color, fontSize: 11, fontWeight: 800, marginBottom: 3 } }, storageSafety.label),
+                React.createElement("div", { style: { color: C.muted, fontSize: 10, lineHeight: 1.4 } }, storageSafety.detail)),
+            imageCount > 0 && React.createElement("div", { style: { color: C.dim, fontSize: 10, lineHeight: 1.4, marginTop: 7 } }, "Stored images are included in the backup-size estimate. They are the main source of storage growth."),
             React.createElement("div", { style: { color: C.dim, fontSize: 10, lineHeight: 1.45, marginTop: 6 } }, "Exports stay on this device until you save the downloaded file somewhere safe."),
             React.createElement("button", { onClick: exportBackup, style: { width: "100%", minHeight: 42, marginTop: 12, padding: "10px 12px", borderRadius: 12, border: "none", background: C.green, color: C.bg0, cursor: "pointer", fontFamily: "inherit", fontWeight: 850, fontSize: 12 } }, "Export Backup"));
+    }
+    function renderBackupImportPreview() {
+        if (!backupPreview)
+            return null;
+        const summary = backupPreview.summary;
+        const rows = [
+            `${summary.tasks} task${summary.tasks === 1 ? "" : "s"}`,
+            `${summary.todayTasks} Today item${summary.todayTasks === 1 ? "" : "s"}`,
+            `${summary.events} event${summary.events === 1 ? "" : "s"}`,
+            `${summary.notes} note${summary.notes === 1 ? "" : "s"}`,
+            `${summary.meds} medication${summary.meds === 1 ? "" : "s"}`,
+            `${summary.images} stored image${summary.images === 1 ? "" : "s"}`
+        ];
+        return React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 15, marginBottom: 10, border: `1px solid ${C.amber}66`, background: C.amber + "0D" }) },
+            React.createElement("div", { style: { color: C.amber, fontSize: 12, fontWeight: 850, marginBottom: 6 } }, "Restore preview"),
+            React.createElement("div", { style: { color: C.text, fontSize: 13, fontWeight: 760, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis" } }, backupPreview.name),
+            backupPreview.summary.exportedAt && React.createElement("div", { style: { color: C.muted, fontSize: 10, marginBottom: 8 } }, `Backup created: ${formatBackupExportTime(backupPreview.summary.exportedAt)}`),
+            React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.5, marginBottom: 8 } }, rows.join(" · ")),
+            React.createElement("div", { style: { color: C.text, fontSize: 11, lineHeight: 1.45, marginBottom: 12 } }, "Restoring replaces Planner data saved on this device. It does not send anything to Apple."),
+            React.createElement("div", { style: { display: "flex", gap: 8 } },
+                React.createElement("button", { onClick: () => setBackupPreview(null), style: { flex: 1, minHeight: 42, padding: "10px", borderRadius: 11, border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", fontFamily: "inherit", fontWeight: 800, fontSize: 11 } }, "Cancel"),
+                React.createElement("button", { onClick: applyBackupImport, style: { flex: 1.4, minHeight: 42, padding: "10px", borderRadius: 11, border: "none", background: C.amber, color: C.bg0, cursor: "pointer", fontFamily: "inherit", fontWeight: 850, fontSize: 11 } }, "Restore Backup")));
+    }
+    function renderPwaUpdateBanner() {
+        if (!pwaUpdateAvailable)
+            return null;
+        return React.createElement("div", { style: { position: "fixed", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 1200, pointerEvents: "none" } },
+            React.createElement("div", { style: { ...cardSurface({ borderRadius: 16, padding: "10px 10px 10px 14px", background: "rgba(17,24,39,.98)", border: `1px solid ${C.accent}66`, boxShadow: "0 12px 30px rgba(0,0,0,.30)" }), display: "flex", alignItems: "center", gap: 10, pointerEvents: "auto" } },
+                React.createElement("div", { style: { flex: 1, minWidth: 0 } },
+                    React.createElement("div", { style: { color: C.text, fontSize: 12, fontWeight: 800 } }, "New Planner version available"),
+                    React.createElement("div", { style: { color: C.muted, fontSize: 10, marginTop: 2 } }, "Reload to use the latest version.")),
+                React.createElement("button", { onClick: () => window.location.reload(), style: { minHeight: 40, padding: "8px 12px", borderRadius: 10, border: "none", background: C.accent, color: C.text, cursor: "pointer", fontFamily: "inherit", fontWeight: 850, fontSize: 11 } }, "Reload"),
+                React.createElement("button", { onClick: () => setPwaUpdateAvailable(false), "aria-label": "Dismiss update notice", title: "Dismiss", style: { width: 40, height: 40, border: "none", background: "transparent", color: C.muted, cursor: "pointer", fontSize: 18 } }, "×")));
     }
     function renderTopLevelBackButton() {
         if (!shouldShowMainBack())
@@ -3040,6 +3123,10 @@ function App() {
                     nextUp && React.createElement("div", { style: { color: C.muted, fontSize: 11, fontWeight: 750 } }, nextIsTask ? "Open task" : "Open event")),
                 React.createElement("div", { style: { color: C.text, fontWeight: 800, fontSize: 16, lineHeight: 1.3, marginBottom: 4 } }, nextUp ? nextItem.text || nextItem.title : nextLabel),
                 React.createElement("div", { style: { color: C.muted, fontSize: 11, lineHeight: 1.4 } }, nextUp ? `${nextLabel} · ${nextMeta}` : nextMeta)),
+            backupNeedsAttention && React.createElement("button", { onClick: () => setTab("sync"), style: { width: "100%", minHeight: 44, marginBottom: 12, borderRadius: 14, border: `1px solid ${C.amber}55`, background: C.amber + "14", color: C.text, cursor: "pointer", fontFamily: "inherit", fontWeight: 780, fontSize: 12, textAlign: "left", padding: "10px 12px" } },
+                React.createElement("span", { style: { color: C.amber, marginRight: 8 } }, "Backup reminder:"), backupHealth.label, " Review Backup & Storage."),
+            storageSafety.level !== "normal" && React.createElement("button", { onClick: () => setTab("sync"), style: { width: "100%", minHeight: 44, marginBottom: 12, borderRadius: 14, border: `1px solid ${storageSafety.color}55`, background: storageSafety.color + "14", color: C.text, cursor: "pointer", fontFamily: "inherit", fontWeight: 780, fontSize: 12, textAlign: "left", padding: "10px 12px" } },
+                React.createElement("span", { style: { color: storageSafety.color, marginRight: 8 } }, "Storage:"), storageSafety.label, " Review Backup & Storage."),
             dashboardOverdueTasks.length > 0 && React.createElement("button", { onClick: () => { setTab("tasks"); openTaskPage("all"); }, style: { width: "100%", minHeight: 44, marginBottom: 12, borderRadius: 14, border: `1px solid ${C.red}55`, background: C.red + "14", color: C.text, cursor: "pointer", fontFamily: "inherit", fontWeight: 780, fontSize: 12, textAlign: "left", padding: "10px 12px" } },
                 React.createElement("span", { style: { color: C.red, marginRight: 8 } }, "Attention:"), dashboardOverdueTasks.length, dashboardOverdueTasks.length === 1 ? " overdue task needs a decision." : " overdue tasks need a decision."),
             React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 14 } },
@@ -3285,6 +3372,7 @@ function App() {
                 : React.createElement(EmptyState, { title: "Apple export queue is clear.", description: "No pending changes to send to Apple.", icon: "✓" }),
             React.createElement(SectionHeader, { icon: "▣", label: "BACKUP", color: C.green }),
             renderBackupHealthPanel(),
+            renderBackupImportPreview(),
             React.createElement("div", { style: cardSurface({ borderRadius: 18, padding: 16 }) },
                 React.createElement("input", { ref: importRef, type: "file", accept: "application/json", style: { display: "none" }, onChange: e => { var _a; const f = (_a = e.target.files) === null || _a === void 0 ? void 0 : _a[0]; if (f)
                             importBackupFile(f); if (e.target)
@@ -3479,6 +3567,7 @@ function App() {
             React.createElement("div", { style: { height: "calc(100dvh - 58px)", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "24px 24px 96px", boxSizing: "border-box" } },
                 React.createElement("div", { style: { maxWidth: 760, margin: "0 auto" } }, content)),
             tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, "aria-label": tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", title: tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", style: { position: "absolute", bottom: 30, right: 30, width: 56, height: 56, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 25, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+            renderPwaUpdateBanner(),
             renderUndoToast(),
             showQuickCapture && React.createElement(QuickCapture, { categories: categories, folders: folders, onAddTask: quickAddTask, onAddToday: title => addTodayTask(title, "", todayStr()), onAddEvent: openQuickCaptureEvent, onAddNote: quickAddNote, onClose: () => setShowQuickCapture(false), fixed: true }),
             lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
@@ -3509,6 +3598,7 @@ function App() {
             React.createElement("input", { ref: searchRef, "data-no-swipe-back": "true", placeholder: "Search tasks, notes, events...", value: searchQuery, onChange: e => setSearchQuery(e.target.value), style: { ...inp, border: `1px solid ${C.accent}66` } }))),
         React.createElement("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: tab === "today" ? "20px 14px 34px" : "14px 14px 106px" } }, phoneContent),
         tab !== "today" && !searchOpen && !(tab === "notes" && noteView === "view") && React.createElement("button", { onClick: primaryAction, "aria-label": tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", title: tab === "calendar" ? "Add event" : tab === "meds" ? "Add medication" : tab === "notes" ? "New note" : tab === "sync" ? "Export pending Apple changes" : "Add task", style: { position: "absolute", bottom: 30, right: 20, width: 52, height: 52, borderRadius: "50%", background: tab === "sync" ? C.amber : C.accent, border: `1px solid rgba(255,255,255,0.16)`, cursor: "pointer", fontSize: 24, color: C.text, fontWeight: 900, boxShadow: "0 10px 24px rgba(0,0,0,0.22)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 } }, tab === "sync" ? "↗" : "+"),
+        renderPwaUpdateBanner(),
         renderUndoToast(),
         showQuickCapture && React.createElement(QuickCapture, { categories: categories, folders: folders, onAddTask: quickAddTask, onAddToday: title => addTodayTask(title, "", todayStr()), onAddEvent: openQuickCaptureEvent, onAddNote: quickAddNote, onClose: () => setShowQuickCapture(false), fixed: true }),
         lightboxImage && React.createElement("div", { onClick: () => setLightboxImage(null), style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 18 } },
